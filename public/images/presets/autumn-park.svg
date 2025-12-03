@@ -1,0 +1,37 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="autumnSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFE4B5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFF8DC;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Sky -->
+  <rect width="600" height="200" fill="url(#autumnSky)"/>
+  <!-- Ground -->
+  <rect y="200" width="600" height="200" fill="#8B7355"/>
+  <!-- Trees -->
+  <!-- Tree 1 -->
+  <rect x="100" y="180" width="20" height="100" fill="#8B4513"/>
+  <circle cx="110" cy="150" r="40" fill="#FF8C00"/>
+  <circle cx="90" cy="140" r="25" fill="#FFA500"/>
+  <circle cx="130" cy="140" r="25" fill="#FF8C00"/>
+  <!-- Tree 2 -->
+  <rect x="250" y="170" width="20" height="110" fill="#8B4513"/>
+  <circle cx="260" cy="130" r="45" fill="#CD853F"/>
+  <circle cx="240" cy="120" r="28" fill="#D2691E"/>
+  <circle cx="280" cy="120" r="28" fill="#CD853F"/>
+  <!-- Tree 3 -->
+  <rect x="400" y="175" width="20" height="105" fill="#8B4513"/>
+  <circle cx="410" cy="135" r="42" fill="#FF8C00"/>
+  <circle cx="390" cy="125" r="26" fill="#FFA500"/>
+  <circle cx="430" cy="125" r="26" fill="#FF8C00"/>
+  <!-- Fallen leaves -->
+  <ellipse cx="150" cy="250" rx="8" ry="5" fill="#FF8C00" transform="rotate(45 150 250)"/>
+  <ellipse cx="200" cy="280" rx="6" ry="4" fill="#FFA500" transform="rotate(-30 200 280)"/>
+  <ellipse cx="350" cy="260" rx="7" ry="5" fill="#CD853F" transform="rotate(60 350 260)"/>
+  <ellipse cx="450" cy="290" rx="8" ry="5" fill="#FF8C00" transform="rotate(-45 450 290)"/>
+  <ellipse cx="500" cy="270" rx="6" ry="4" fill="#D2691E" transform="rotate(30 500 270)"/>
+  <!-- Text -->
+  <text x="300" y="360" font-family="Arial" font-size="22" fill="#8B4513" text-anchor="middle" font-weight="bold">Autumn Park</text>
+</svg>
+

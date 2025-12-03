@@ -1,0 +1,26 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#87CEEB;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFD700;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="ocean" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4682B4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E90FF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Sky -->
+  <rect width="600" height="250" fill="url(#sky)"/>
+  <!-- Sun -->
+  <circle cx="500" cy="80" r="40" fill="#FFD700"/>
+  <!-- Ocean -->
+  <rect y="250" width="600" height="150" fill="url(#ocean)"/>
+  <!-- Waves -->
+  <path d="M 0 250 Q 150 240 300 250 T 600 250" stroke="#87CEEB" stroke-width="3" fill="none"/>
+  <path d="M 0 270 Q 150 260 300 270 T 600 270" stroke="#87CEEB" stroke-width="2" fill="none"/>
+  <!-- Beach -->
+  <rect y="300" width="600" height="100" fill="#F4A460"/>
+  <!-- Text -->
+  <text x="300" y="360" font-family="Arial" font-size="24" fill="#8B4513" text-anchor="middle" font-weight="bold">Beach Vacation</text>
+</svg>
+

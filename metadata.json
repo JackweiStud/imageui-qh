@@ -1,0 +1,7 @@
+{
+  "name": "3.0 StyleMorph AI",
+  "description": "Transform your photos with AI. Change outfits, apply artistic styles, or experiment with makeup using advanced Gemini AI technology.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

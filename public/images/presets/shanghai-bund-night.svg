@@ -1,0 +1,37 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nightSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Night Sky -->
+  <rect width="600" height="400" fill="url(#nightSky)"/>
+  <!-- Stars -->
+  <circle cx="100" cy="50" r="2" fill="#fff"/>
+  <circle cx="200" cy="80" r="1.5" fill="#fff"/>
+  <circle cx="350" cy="60" r="2" fill="#fff"/>
+  <circle cx="450" cy="90" r="1.5" fill="#fff"/>
+  <circle cx="550" cy="70" r="2" fill="#fff"/>
+  <!-- City Skyline -->
+  <rect x="0" y="200" width="600" height="200" fill="#0f3460"/>
+  <!-- Buildings -->
+  <rect x="50" y="150" width="60" height="250" fill="#1e3a5f"/>
+  <rect x="120" y="100" width="80" height="300" fill="#2a4a6f"/>
+  <rect x="210" y="120" width="70" height="280" fill="#1e3a5f"/>
+  <rect x="290" y="80" width="90" height="320" fill="#2a4a6f"/>
+  <rect x="390" y="110" width="65" height="290" fill="#1e3a5f"/>
+  <rect x="465" y="130" width="75" height="270" fill="#2a4a6f"/>
+  <!-- Windows (lights) -->
+  <rect x="60" y="180" width="8" height="8" fill="#FFD700"/>
+  <rect x="80" y="200" width="8" height="8" fill="#FFD700"/>
+  <rect x="140" y="150" width="8" height="8" fill="#FFD700"/>
+  <rect x="170" y="170" width="8" height="8" fill="#FFD700"/>
+  <rect x="300" y="130" width="8" height="8" fill="#FFD700"/>
+  <rect x="330" y="150" width="8" height="8" fill="#FFD700"/>
+  <!-- Water reflection -->
+  <rect y="350" width="600" height="50" fill="#0a1929"/>
+  <!-- Text -->
+  <text x="300" y="380" font-family="Arial" font-size="20" fill="#FFD700" text-anchor="middle" font-weight="bold">Shanghai Bund Night</text>
+</svg>
+

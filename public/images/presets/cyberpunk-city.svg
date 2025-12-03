@@ -1,0 +1,37 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cyberSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a0033;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#000033;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Dark sky -->
+  <rect width="600" height="400" fill="url(#cyberSky)"/>
+  <!-- Buildings -->
+  <rect x="0" y="150" width="80" height="250" fill="#1a1a2e"/>
+  <rect x="90" y="100" width="70" height="300" fill="#2d1b4e"/>
+  <rect x="170" y="120" width="65" height="280" fill="#1a1a2e"/>
+  <rect x="245" y="80" width="85" height="320" fill="#2d1b4e"/>
+  <rect x="340" y="110" width="70" height="290" fill="#1a1a2e"/>
+  <rect x="420" y="90" width="75" height="310" fill="#2d1b4e"/>
+  <rect x="505" y="130" width="95" height="270" fill="#1a1a2e"/>
+  <!-- Neon windows (pink/cyan) -->
+  <rect x="10" y="180" width="12" height="15" fill="#FF00FF"/>
+  <rect x="30" y="200" width="12" height="15" fill="#00FFFF"/>
+  <rect x="100" y="150" width="12" height="15" fill="#FF00FF"/>
+  <rect x="130" y="170" width="12" height="15" fill="#00FFFF"/>
+  <rect x="260" y="120" width="12" height="15" fill="#FF00FF"/>
+  <rect x="290" y="140" width="12" height="15" fill="#00FFFF"/>
+  <rect x="350" y="150" width="12" height="15" fill="#FF00FF"/>
+  <rect x="430" y="130" width="12" height="15" fill="#00FFFF"/>
+  <rect x="520" y="170" width="12" height="15" fill="#FF00FF"/>
+  <!-- Neon signs -->
+  <rect x="250" y="60" width="60" height="15" fill="#FF00FF" opacity="0.8"/>
+  <rect x="420" y="70" width="50" height="12" fill="#00FFFF" opacity="0.8"/>
+  <!-- Ground with neon lines -->
+  <rect y="380" width="600" height="20" fill="#0a0a1a"/>
+  <line x1="0" y1="390" x2="600" y2="390" stroke="#FF00FF" stroke-width="2" opacity="0.6"/>
+  <!-- Text -->
+  <text x="300" y="370" font-family="Arial" font-size="20" fill="#FF00FF" text-anchor="middle" font-weight="bold">Cyberpunk City</text>
+</svg>
+

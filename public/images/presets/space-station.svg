@@ -1,0 +1,37 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Space background -->
+  <rect width="600" height="400" fill="#000033"/>
+  <!-- Stars -->
+  <circle cx="50" cy="50" r="1" fill="#fff"/>
+  <circle cx="150" cy="80" r="1.5" fill="#fff"/>
+  <circle cx="250" cy="40" r="1" fill="#fff"/>
+  <circle cx="350" cy="100" r="1.5" fill="#fff"/>
+  <circle cx="450" cy="60" r="1" fill="#fff"/>
+  <circle cx="550" cy="90" r="1.5" fill="#fff"/>
+  <circle cx="100" cy="150" r="1" fill="#fff"/>
+  <circle cx="200" cy="120" r="1.5" fill="#fff"/>
+  <circle cx="400" cy="140" r="1" fill="#fff"/>
+  <circle cx="500" cy="110" r="1.5" fill="#fff"/>
+  <!-- Earth (distant) -->
+  <circle cx="500" cy="300" r="80" fill="#4A90E2" opacity="0.6"/>
+  <circle cx="480" cy="280" r="60" fill="#2E5C8A" opacity="0.4"/>
+  <!-- Space Station -->
+  <!-- Main body -->
+  <rect x="200" y="180" width="200" height="40" fill="#C0C0C0" rx="5"/>
+  <!-- Solar panels -->
+  <rect x="150" y="190" width="60" height="20" fill="#4169E1" opacity="0.7"/>
+  <rect x="390" y="190" width="60" height="20" fill="#4169E1" opacity="0.7"/>
+  <!-- Modules -->
+  <circle cx="220" cy="200" r="15" fill="#808080"/>
+  <circle cx="280" cy="200" r="15" fill="#808080"/>
+  <circle cx="340" cy="200" r="15" fill="#808080"/>
+  <circle cx="380" cy="200" r="15" fill="#808080"/>
+  <!-- Docking port -->
+  <rect x="295" y="220" width="10" height="15" fill="#696969"/>
+  <!-- Antenna -->
+  <line x1="300" y1="180" x2="300" y2="160" stroke="#C0C0C0" stroke-width="2"/>
+  <circle cx="300" cy="155" r="3" fill="#FFD700"/>
+  <!-- Text -->
+  <text x="300" y="360" font-family="Arial" font-size="22" fill="#C0C0C0" text-anchor="middle" font-weight="bold">Space Station</text>
+</svg>
+

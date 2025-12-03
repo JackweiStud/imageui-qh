@@ -1,0 +1,26 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sky -->
+  <rect width="600" height="150" fill="#87CEEB"/>
+  <!-- Field -->
+  <rect y="150" width="600" height="250" fill="#228B22"/>
+  <!-- Center circle -->
+  <circle cx="300" cy="275" r="60" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+  <circle cx="300" cy="275" r="5" fill="#FFFFFF"/>
+  <!-- Center line -->
+  <line x1="0" y1="275" x2="600" y2="275" stroke="#FFFFFF" stroke-width="3"/>
+  <!-- Penalty areas -->
+  <rect x="0" y="200" width="120" height="150" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+  <rect x="480" y="200" width="120" height="150" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+  <!-- Goal areas -->
+  <rect x="0" y="230" width="50" height="90" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <rect x="550" y="230" width="50" height="90" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <!-- Field lines pattern -->
+  <line x1="0" y1="220" x2="600" y2="220" stroke="#90EE90" stroke-width="1" stroke-dasharray="5,5"/>
+  <line x1="0" y1="330" x2="600" y2="330" stroke="#90EE90" stroke-width="1" stroke-dasharray="5,5"/>
+  <!-- Stadium lights (simplified) -->
+  <rect x="50" y="0" width="4" height="80" fill="#696969"/>
+  <rect x="546" y="0" width="4" height="80" fill="#696969"/>
+  <!-- Text -->
+  <text x="300" y="360" font-family="Arial" font-size="20" fill="#FFFFFF" text-anchor="middle" font-weight="bold" stroke="#000" stroke-width="0.5">Football Field Center</text>
+</svg>
+
