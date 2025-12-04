@@ -43,8 +43,10 @@ StyleMorph AI 是一个功能强大的 AI 图像生成与编辑平台，基于 N
    ```env
    GEMINI_API_KEY=你的_GEMINI_API_KEY
    ```
-   *(可选) 如果需要代理:*
-   ```env
+   *(可选) 如果需要代理:* 
+   ```env 打开IE浏览器查看--打开代理设置--查看端口号
+   或者cmd 命令netstat -ano | findstr "127.0.0.1:" | findstr LISTENING 
+
    HTTP_PROXY=http://127.0.0.1:7890
    HTTPS_PROXY=http://127.0.0.1:7890
    ```
