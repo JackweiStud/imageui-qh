@@ -185,21 +185,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
 };
 
 // Helper Component for consistency
+// Helper Component for consistency
 const FeatureCard = ({ icon, color, title, description, onClick, delay }: any) => {
-  // Dynamic color mapping
-  const colorClasses: Record<string, string> = {
-    blue: "bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(59,130,246,0.3)]",
-    cyan: "bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(34,211,238,0.3)]",
-    purple: "bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(168,85,247,0.3)]",
-    pink: "bg-pink-500/10 text-pink-400 group-hover:bg-pink-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(236,72,153,0.3)]",
-    emerald: "bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(16,185,129,0.3)]",
-    red: "bg-red-500/10 text-red-400 group-hover:bg-red-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(239,68,68,0.3)]",
+  // Dynamic color mapping for the icon box
+  const iconColorClasses: Record<string, string> = {
+    blue: "bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(59,130,246,0.5)]",
+    cyan: "bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(34,211,238,0.5)]",
+    purple: "bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(168,85,247,0.5)]",
+    pink: "bg-pink-500/10 text-pink-400 group-hover:bg-pink-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(236,72,153,0.5)]",
+    emerald: "bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(16,185,129,0.5)]",
+    red: "bg-red-500/10 text-red-400 group-hover:bg-red-500/20 group-hover:shadow-[0_0_50px_-12px_rgba(239,68,68,0.5)]",
+  };
+
+  // Dynamic hover background for the entire card
+  const cardHoverClasses: Record<string, string> = {
+    blue: "hover:bg-gradient-to-br hover:from-blue-500/10 hover:to-blue-600/5 hover:border-blue-500/20",
+    cyan: "hover:bg-gradient-to-br hover:from-cyan-500/10 hover:to-cyan-600/5 hover:border-cyan-500/20",
+    purple: "hover:bg-gradient-to-br hover:from-purple-500/10 hover:to-purple-600/5 hover:border-purple-500/20",
+    pink: "hover:bg-gradient-to-br hover:from-pink-500/10 hover:to-pink-600/5 hover:border-pink-500/20",
+    emerald: "hover:bg-gradient-to-br hover:from-emerald-500/10 hover:to-emerald-600/5 hover:border-emerald-500/20",
+    red: "hover:bg-gradient-to-br hover:from-red-500/10 hover:to-red-600/5 hover:border-red-500/20",
   };
 
   return (
     <button
       onClick={onClick}
-      className="group relative p-8 rounded-3xl bg-dark-surface border border-white/5 hover:border-white/10 transition-all duration-300 hover:-translate-y-1 text-left flex flex-col h-64 justify-between overflow-hidden"
+      className={`group relative p-8 rounded-3xl bg-dark-surface border border-white/5 transition-all duration-300 hover:-translate-y-1 text-left flex flex-col h-64 justify-between overflow-hidden ${cardHoverClasses[color]}`}
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className={`absolute top-0 right-0 p-12 opacity-0 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500`}>
@@ -208,7 +219,7 @@ const FeatureCard = ({ icon, color, title, description, onClick, delay }: any) =
       </div>
 
       <div className="relative z-10">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 ${colorClasses[color]}`}>
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 ${iconColorClasses[color]}`}>
           {icon}
         </div>
         <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
