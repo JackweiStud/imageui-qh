@@ -17,6 +17,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialVi
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const { signInWithGoogle, signInWithGithub } = useAuth();
     const supabase = createClient();
 
@@ -26,6 +27,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialVi
         e.preventDefault();
         setLoading(true);
         setError(null);
+        setSuccessMessage(null);
 
         try {
             if (view === 'email_signup') {
@@ -34,9 +36,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialVi
                     password,
                 });
                 if (error) throw error;
-                // 注册成功，通常Supabase默认不需要确认邮件才能登录，但如果有配置，这里可能需要提示
-                alert('注册成功！请检查邮箱确认链接（如果配置了验证），或直接登录。');
-                setView('signin');
+                setSuccessMessage('Registration successful! Please check your email for confirmation.');
             } else {
                 const { error } = await supabase.auth.signInWithPassword({
                     email,
@@ -63,7 +63,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialVi
         }
     };
 
-    // 共享样式
+    // Shared Styles
     const btnBase = "w-full py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-3";
     const btnPrimary = `${btnBase} bg-[#D4F46F] hover:bg-[#bce055] text-black shadow-lg shadow-[#D4F46F]/10`;
     const btnDark = `${btnBase} bg-[#1E1E1E] hover:bg-[#2A2A2A] text-white border border-[#333]`;
@@ -144,6 +144,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialVi
                             {error && (
                                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
                                     {error}
+                                </div>
+                            )}
+                            {successMessage && (
+                                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
+                                    {successMessage}
                                 </div>
                             )}
 
