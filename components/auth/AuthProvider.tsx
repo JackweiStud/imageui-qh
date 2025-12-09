@@ -15,6 +15,8 @@ type AuthContextType = {
     signOut: () => Promise<void>
     openAuthModal: () => void
     closeAuthModal: () => void
+    credits: number
+    refreshCredits: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -24,13 +26,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+    const [credits, setCredits] = useState<number>(0)
     const supabase = createClient()
+
+    const fetchCredits = async (userId: string) => {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('credits')
+            .eq('id', userId)
+            .single()
+
+        if (data) {
+            setCredits(data.credits ?? 0)
+        }
+    }
 
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event, session) => {
                 setSession(session)
                 setUser(session?.user ?? null)
+
+                if (session?.user) {
+                    fetchCredits(session.user.id)
+                } else {
+                    setCredits(0)
+                }
+
                 setIsLoading(false)
 
                 // Close modal on successful sign in
@@ -77,7 +99,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             signInWithGithub,
             signOut,
             openAuthModal,
-            closeAuthModal
+            closeAuthModal,
+            credits,
+            refreshCredits: async () => {
+                if (user) await fetchCredits(user.id)
+            }
         }}>
             {children}
             <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />

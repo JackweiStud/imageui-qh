@@ -95,15 +95,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Magic Prompt 状态
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
-  const { user, openAuthModal } = useAuth();
 
-  // 包装 Generate 点击事件，检查登录状态
+  const { user, openAuthModal, credits, refreshCredits } = useAuth();
+
+  // 包装 Generate 点击事件，检查登录状态和积分
   const handleGenerateClick = () => {
     if (!user) {
       openAuthModal();
       return;
     }
+    if (credits < 10) {
+      alert(t.insufficientCredits); // TODO: Replace with better UI toast if available
+      return;
+    }
     onGenerate();
+    // Refresh credits after a delay or pass a callback to onGenerate if possible. 
+    // Since onGenerate is async in parent, we might want to refresh when isGenerating becomes false?
+    // But isGenerating is a prop. Sidebar doesn't control it.
+    // The parent component should handle credit refresh or we poll.
+    // Ideally, onGenerate should return a promise.
+    // For now, let's refresh after a short delay or rely on parent.
+    // Actually, simple timeout here to fetch updated credits is okay as an immediate feedback attempt.
+    setTimeout(() => refreshCredits(), 3000);
+    setTimeout(() => refreshCredits(), 10000); // Retry later too
   };
 
   // Magic Prompt 处理函数
@@ -670,6 +684,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           {getButtonText()}
         </Button>
+        {user && (
+          <div className="mt-3 flex items-center justify-center text-xs text-slate-500 gap-2">
+            <span>{t.aiGenerated}</span>
+            <span className="w-1 h-1 rounded-full bg-slate-600"></span>
+            <span className={`${credits < 10 ? 'text-red-400 font-bold' : 'text-brand-400'}`}>
+              {credits} Credits
+            </span>
+            <span className="text-slate-600">(-10/gen)</span>
+          </div>
+        )}
       </div>
     </div>
   );

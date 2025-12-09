@@ -13,7 +13,7 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language }) => {
   const t = TRANSLATIONS[language];
-  const { user, openAuthModal, signOut } = useAuth();
+  const { user, openAuthModal, signOut, credits } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-dark-bg text-white selection:bg-brand-500/30 font-sans">
@@ -32,7 +32,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
             <div className="flex items-center gap-4">
               <div className="hidden md:flex flex-col text-right">
                 <span className="text-sm font-medium text-white">{user.email}</span>
-                <span className="text-xs text-brand-400">Free Plan</span>
+                <span className="text-xs text-brand-400">{credits} Credits</span>
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#D4F46F] to-emerald-500 flex items-center justify-center text-black font-bold text-sm">
                 {user.email?.[0].toUpperCase() || 'U'}

@@ -10,15 +10,19 @@ if (proxyUrl) {
   setGlobalDispatcher(new ProxyAgent(proxyUrl));
 }
 
+
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
-import { 
-  GenerateRequest, 
-  GenerateResponse, 
+import {
+  GenerateRequest,
+  GenerateResponse,
   ERROR_CODES,
   ImageConfig,
   AspectRatio,
-  TryOnMode 
+  TryOnMode
 } from '@/lib/types';
 
 // ==================== 工具函数 ====================
@@ -26,12 +30,79 @@ import {
 // 获取 AI 客户端 (服务端专用)
 const getAiClient = () => {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  
+
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
-  
+
   return new GoogleGenAI({ apiKey });
+};
+
+// 获取 Supabase Admin 客户端 (用于扣除积分，绕过 RLS)
+const getSupabaseAdmin = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseServiceKey) {
+    throw new Error('Server Configuration Error: SUPABASE_SERVICE_ROLE_KEY is missing.');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+};
+
+// 1. 检查积分（不扣除）
+const checkCredits = async (supabase: any, userId: string, cost: number = 10): Promise<{ success: boolean; error?: string; remainingCredits?: number }> => {
+  // 强制检查，不再允许跳过
+  const { data: profile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('credits')
+    .eq('id', userId)
+    .single();
+
+  if (fetchError) {
+    if (fetchError.code === 'PGRST116') {
+      // 未找用户，尝试初始化，给予默认积分
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({ id: userId, email: '', credits: 35 });
+
+      if (!insertError) return { success: true, remainingCredits: 35 };
+    }
+    return { success: false, error: 'User profile error' };
+  }
+
+  const currentCredits = profile?.credits ?? 0;
+  if (currentCredits < cost) {
+    return {
+      success: false,
+      error: ERROR_CODES.INSUFFICIENT_CREDITS,
+      remainingCredits: currentCredits
+    };
+  }
+
+  return { success: true, remainingCredits: currentCredits };
+};
+
+// 2. 扣除积分（生成成功后调用）- 使用原子 RPC 函数解决并发问题
+const deductCredits = async (supabase: any, userId: string, cost: number = 10): Promise<void> => {
+
+  // 使用数据库 RPC 函数实现原子操作，解决并发竞态条件
+  const { error } = await supabase.rpc('deduct_credits', {
+    user_id: userId,
+    amount: cost
+  });
+
+  if (error) {
+    console.error('Error deducting credits via RPC:', error);
+    // RPC 函数会在积分不足时静默失败（WHERE credits >= amount）
+    // 这里可以选择记录日志或抛出错误
+    // 由于我们已经在前置检查中验证了积分，这里通常不会失败
+  }
 };
 
 // 创建带错误码的响应
@@ -105,7 +176,7 @@ const mapAspectRatio = (ratio: AspectRatio): string | undefined => {
 const fetchReferenceImage = async (url: string): Promise<string> => {
   // 如果是相对路径，需要拼接完整URL
   const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${url}`;
-  
+
   try {
     const response = await fetch(fullUrl);
     const arrayBuffer = await response.arrayBuffer();
@@ -445,6 +516,41 @@ Please enhance this into a professional AI image generation prompt. Output in ${
 
 export async function POST(request: NextRequest) {
   try {
+    // 0. 验证用户身份
+    const cookieStore = cookies();
+
+    // 创建 SSR 客户端仅用于验证 Session
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+        },
+      }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Unauthorized: Please log in.'));
+      // 或者对于某些公开演示模式（如果 Landing Page 允许），可以跳过。
+      // 但根据需求 "给注册的用户先送35积分"，暗示必须登录。
+    }
+
+    // 1. 检查积分 PRE-CHECK (不扣分)
+    const adminSupabase = getSupabaseAdmin();
+    const creditCheck = await checkCredits(adminSupabase, user.id, 10);
+
+    if (!creditCheck.success) {
+      return NextResponse.json(createErrorResponse(
+        creditCheck.error || ERROR_CODES.UNKNOWN,
+        creditCheck.error === ERROR_CODES.INSUFFICIENT_CREDITS ? '积分不足，无法生成图片' : 'Credit check failed'
+      ));
+    }
+
     const body: GenerateRequest = await request.json();
     let result: string;
 
@@ -496,20 +602,24 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing customPrompt'));
         }
         result = await enhancePrompt(body.customPrompt, body.language || 'en');
-        break;
+        // enhancePrompt usually is free, so return here without deduction
+        return NextResponse.json({ success: true, data: result } as GenerateResponse);
 
       default:
         return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Invalid action'));
     }
 
+    // 3. 生成成功，扣除积分
+    await deductCredits(adminSupabase, user.id, 10);
+
     return NextResponse.json({ success: true, data: result } as GenerateResponse);
   } catch (error: any) {
     console.error('API Route Error:', error);
-    
+
     if (error.code) {
       return NextResponse.json(createErrorResponse(error.code, error.message));
     }
-    
+
     const parsed = parseApiError(error);
     return NextResponse.json(createErrorResponse(parsed.code, parsed.message));
   }

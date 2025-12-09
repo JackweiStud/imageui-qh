@@ -63,29 +63,29 @@ export interface ImageConfig {
 export interface HistoryItem {
   id: string;
   timestamp: number;
-  
+
   // 图片数据
   originalImage: string | null;
   resultImage: string;
-  
+
   // 当时的模式
   appMode: AppMode;
-  
+
   // Style Mode 参数
   selectedStyleMode?: TransformationMode;
   selectedStyleId?: string;
-  
+
   // Reference Mode 参数
   selectedReferenceId?: string;
-  
+
   // Free Mode 参数
   customPrompt?: string;
   imageConfig?: ImageConfig;
-  
+
   // Custom Ref Mode 参数
   customTargetImage?: string | null;
   customPoseImage?: string | null;
-  
+
   // Inpainting Mode 参数
   maskImage?: string | null;
   inpaintingPrompt?: string;
@@ -97,37 +97,37 @@ export interface HistoryItem {
 
 // API 请求/响应类型
 export interface GenerateRequest {
-  action: 
-    | 'styleTransform' 
-    | 'referenceTransform' 
-    | 'freeStyle' 
-    | 'customSwap' 
-    | 'inpainting' 
-    | 'virtualTryOn'
-    | 'enhancePrompt';
-  
+  action:
+  | 'styleTransform'
+  | 'referenceTransform'
+  | 'freeStyle'
+  | 'customSwap'
+  | 'inpainting'
+  | 'virtualTryOn'
+  | 'enhancePrompt';
+
   // 通用参数
   sourceImage?: string;
   promptModifier?: string;
-  
+
   // Reference 模式
   referenceImageUrl?: string;
-  
+
   // Free 模式
   customPrompt?: string;
   imageConfig?: ImageConfig;
-  
+
   // Custom Swap 模式
   targetImage?: string;
   poseImage?: string | null;
-  
+
   // Inpainting 模式
   maskImage?: string;
-  
+
   // Virtual Try-On 模式
   garmentImage?: string;
   tryOnMode?: TryOnMode;
-  
+
   // Enhance Prompt
   language?: Language;
 }
@@ -146,6 +146,7 @@ export const ERROR_CODES = {
   QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
   PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
   NETWORK_ERROR: 'NETWORK_ERROR',
+  INSUFFICIENT_CREDITS: 'INSUFFICIENT_CREDITS',
   UNKNOWN: 'UNKNOWN',
 } as const;
 

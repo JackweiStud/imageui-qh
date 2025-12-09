@@ -181,6 +181,7 @@ export const TRANSLATIONS = {
     professionalTryOnDesc: "Specialized for fashion. Swap models while keeping clothes pixel-perfect, or try on clothes while keeping your identity.",
     startTryOn: "Start Try-On",
     loginToSave: "Sign in to save history",
+    insufficientCredits: "Insufficient credits (Requires 10)",
   },
   zh: {
     backToMenu: "返回菜单",
@@ -315,6 +316,7 @@ export const TRANSLATIONS = {
     professionalTryOnDesc: "专为时尚设计。保留服装细节替换模特，或保留人物特征试穿新衣。",
     startTryOn: "开始试衣",
     loginToSave: "登录以保存历史",
+    insufficientCredits: "积分不足 (需要 10 积分)",
   }
 };
 
