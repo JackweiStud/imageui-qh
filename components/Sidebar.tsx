@@ -7,6 +7,7 @@ import { Wand2, ArrowLeft, Upload, Edit3, Image as ImageIcon, PenTool, Settings2
 import { Button } from './Button';
 import { enhancePrompt } from '@/lib/api-client';
 import { useAuth } from './auth/AuthProvider';
+import { CreditsModal } from './CreditsModal';
 
 interface SidebarProps {
   appMode: AppMode;
@@ -50,7 +51,7 @@ interface SidebarProps {
   onTryOnRefUpload?: (file: File) => void;
 
   // Shared
-  onGenerate: () => void;
+  onGenerate: () => Promise<void>;
   isGenerating: boolean;
   hasImage: boolean;
 }
@@ -95,29 +96,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Magic Prompt 状态
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
 
   const { user, openAuthModal, credits, refreshCredits } = useAuth();
 
   // 包装 Generate 点击事件，检查登录状态和积分
-  const handleGenerateClick = () => {
+  const handleGenerateClick = async () => {
     if (!user) {
       openAuthModal();
       return;
     }
     if (credits < 10) {
-      alert(t.insufficientCredits); // TODO: Replace with better UI toast if available
+      setShowCreditsModal(true);
       return;
     }
-    onGenerate();
-    // Refresh credits after a delay or pass a callback to onGenerate if possible. 
-    // Since onGenerate is async in parent, we might want to refresh when isGenerating becomes false?
-    // But isGenerating is a prop. Sidebar doesn't control it.
-    // The parent component should handle credit refresh or we poll.
-    // Ideally, onGenerate should return a promise.
-    // For now, let's refresh after a short delay or rely on parent.
-    // Actually, simple timeout here to fetch updated credits is okay as an immediate feedback attempt.
-    setTimeout(() => refreshCredits(), 3000);
-    setTimeout(() => refreshCredits(), 10000); // Retry later too
+
+    // Wait for generation to complete, then refresh credits immediately
+    await onGenerate();
+    refreshCredits();
   };
 
   // Magic Prompt 处理函数
@@ -686,15 +682,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </Button>
         {user && (
           <div className="mt-3 flex items-center justify-center text-xs text-slate-500 gap-2">
-            <span>{t.aiGenerated}</span>
-            <span className="w-1 h-1 rounded-full bg-slate-600"></span>
             <span className={`${credits < 10 ? 'text-red-400 font-bold' : 'text-brand-400'}`}>
-              {credits} Credits
+              Balance: {credits}
             </span>
-            <span className="text-slate-600">(-10/gen)</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-slate-600">Cost: 10</span>
           </div>
         )}
       </div>
+
+      <CreditsModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+        requiredCredits={10}
+        currentCredits={credits}
+        language={language}
+      />
     </div>
   );
 };
