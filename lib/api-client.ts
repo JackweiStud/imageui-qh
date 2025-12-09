@@ -3,17 +3,73 @@
  * 所有 AI 请求通过 /api/generate 发送，API Key 在后端安全处理
  */
 
-import { 
-  GenerateRequest, 
-  GenerateResponse, 
-  ImageConfig, 
+import {
+  GenerateRequest,
+  GenerateResponse,
+  ImageConfig,
   TryOnMode,
   Language,
-  ERROR_CODES 
+  ERROR_CODES
 } from './types';
+import { createClient } from '@/lib/supabase/client';
 
 // API 端点
 const API_ENDPOINT = '/api/generate';
+
+// 辅助：Base64 转 Blob
+const base64ToBlob = (base64: string, mimeType = 'image/jpeg'): Blob => {
+  const byteString = atob(base64.split(',')[1]);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeType });
+};
+
+// 辅助：上传图片到 Supabase Storage ('raw_uploads')
+// 返回带签名的 URL (有效期 1 小时)
+const uploadImageToSupabase = async (base64Str: string): Promise<string> => {
+  const supabase = createClient();
+
+  // 1. 获取当前用户
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error('Please login to upload images');
+  }
+
+  // 2. 转换文件
+  const blob = base64ToBlob(base64Str);
+  const fileExt = 'jpg';
+  const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+  const filePath = `${user.id}/${fileName}`; // 必须匹配 RLS 策略: uid/filename
+
+  // 3. 上传
+  const { error: uploadError } = await supabase.storage
+    .from('raw_uploads')
+    .upload(filePath, blob, {
+      upsert: true,
+      contentType: 'image/jpeg'
+    });
+
+  if (uploadError) {
+    console.error('Storage Upload Error:', uploadError);
+    throw new Error('Failed to upload image to storage');
+  }
+
+  // 4. 获取 Signed URL (有效期 3600 秒 = 1 小时)
+  // 因为我们的 bucket 设为 private，后端需要 signed url 才能读取 (或者后端用 admin key 也可以 download，但 fetch 更通用)
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from('raw_uploads')
+    .createSignedUrl(filePath, 3600);
+
+  if (signedError || !signedData?.signedUrl) {
+    console.error('Get Signed URL Error:', signedError);
+    throw new Error('Failed to get image URL');
+  }
+
+  return signedData.signedUrl;
+};
 
 // 通用请求函数
 async function callApi(request: GenerateRequest): Promise<string> {
@@ -52,7 +108,7 @@ async function callApi(request: GenerateRequest): Promise<string> {
     return data.data!;
   } catch (error: any) {
     clearTimeout(timeoutId);
-    
+
     // 处理前端主动超时
     if (error.name === 'AbortError') {
       throw new Error('请求等待超时，生成过程可能仍在后台进行，请稍后刷新查看结果。');
@@ -116,9 +172,11 @@ export const generateImageTransformation = async (
   promptModifier: string
 ): Promise<string> => {
   const optimizedImage = await compressImage(sourceImage);
+  const imageUrl = await uploadImageToSupabase(optimizedImage);
+
   return callApi({
     action: 'styleTransform',
-    sourceImage: optimizedImage,
+    sourceImage: imageUrl,
     promptModifier,
   });
 };
@@ -132,9 +190,15 @@ export const generateReferenceTransformation = async (
   promptModifier: string
 ): Promise<string> => {
   const optimizedImage = await compressImage(userImage, 800, 0.6);
+  const sourceUrl = await uploadImageToSupabase(optimizedImage);
+
+  // existing referenceImageUrl is likely already a URL (e.g. preset or previously generated)
+  // If it's base64, we should also upload it, but currently types assume string.
+  // We assume referenceImageUrl is a remote URL for now as per preset logic.
+
   return callApi({
     action: 'referenceTransform',
-    sourceImage: optimizedImage,
+    sourceImage: sourceUrl,
     referenceImageUrl,
     promptModifier,
   });
@@ -148,13 +212,16 @@ export const generateFreeStyleTransformation = async (
   customPrompt: string,
   imageConfig?: ImageConfig
 ): Promise<string> => {
-  let optimizedImage: string | undefined;
+  let sourceUrl: string | undefined;
+
   if (sourceImage) {
-    optimizedImage = await compressImage(sourceImage, 2048, 0.9);
+    const optimizedImage = await compressImage(sourceImage, 2048, 0.9);
+    sourceUrl = await uploadImageToSupabase(optimizedImage);
   }
+
   return callApi({
     action: 'freeStyle',
-    sourceImage: optimizedImage,
+    sourceImage: sourceUrl,
     customPrompt,
     imageConfig,
   });
@@ -170,15 +237,25 @@ export const generateCustomSwapTransformation = async (
 ): Promise<string> => {
   const optimizedSource = await compressImage(sourceImage, 768, 0.6);
   const optimizedTarget = await compressImage(targetImage, 768, 0.6);
-  let optimizedPose: string | undefined;
+
+  // Parallel upload
+  const uploadPromises = [
+    uploadImageToSupabase(optimizedSource),
+    uploadImageToSupabase(optimizedTarget)
+  ];
+
   if (poseImage) {
-    optimizedPose = await compressImage(poseImage, 768, 0.6);
+    const optimizedPose = await compressImage(poseImage, 768, 0.6);
+    uploadPromises.push(uploadImageToSupabase(optimizedPose));
   }
+
+  const urls = await Promise.all(uploadPromises);
+
   return callApi({
     action: 'customSwap',
-    sourceImage: optimizedSource,
-    targetImage: optimizedTarget,
-    poseImage: optimizedPose,
+    sourceImage: urls[0],
+    targetImage: urls[1],
+    poseImage: poseImage ? urls[2] : undefined,
   });
 };
 
@@ -192,10 +269,16 @@ export const generateInpaintingTransformation = async (
 ): Promise<string> => {
   const optimizedSource = await compressImage(sourceImage, 1024, 0.8);
   const optimizedMask = await compressImage(maskImage, 1024, 0.8);
+
+  const [sourceUrl, maskUrl] = await Promise.all([
+    uploadImageToSupabase(optimizedSource),
+    uploadImageToSupabase(optimizedMask)
+  ]);
+
   return callApi({
     action: 'inpainting',
-    sourceImage: optimizedSource,
-    maskImage: optimizedMask,
+    sourceImage: sourceUrl,
+    maskImage: maskUrl,
     promptModifier,
   });
 };
@@ -210,10 +293,16 @@ export const generateVirtualTryOnTransformation = async (
 ): Promise<string> => {
   const optimizedPerson = await compressImage(personImage, 768, 0.6);
   const optimizedGarment = await compressImage(garmentImage, 768, 0.6);
+
+  const [personUrl, garmentUrl] = await Promise.all([
+    uploadImageToSupabase(optimizedPerson),
+    uploadImageToSupabase(optimizedGarment)
+  ]);
+
   return callApi({
     action: 'virtualTryOn',
-    sourceImage: optimizedPerson,
-    garmentImage: optimizedGarment,
+    sourceImage: personUrl,
+    garmentImage: garmentUrl,
     tryOnMode: mode,
   });
 };
@@ -234,4 +323,3 @@ export const enhancePrompt = async (
 
 // 重新导出错误码供组件使用
 export { ERROR_CODES };
-

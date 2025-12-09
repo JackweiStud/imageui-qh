@@ -134,7 +134,7 @@ export interface GenerateRequest {
 
 export interface GenerateResponse {
   success: boolean;
-  data?: string; // Base64 图片或增强后的 prompt
+  data?: string; // 图片 URL 或增强后的 prompt
   error?: string;
   errorCode?: string;
 }
