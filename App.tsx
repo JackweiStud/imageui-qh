@@ -239,18 +239,11 @@ const App: React.FC = () => {
   };
 
   // 新增：将结果图转为 Inpainting 的底图（Continue Inpainting 功能）
+  // 注意：延迟模式切换，只有用户保存遮罩后才真正切换，点击 X 关闭时恢复原状态
   const handleInpaintResult = () => {
     if (resultImage) {
-      // 1. 将当前结果设为原图
-      setOriginalImage(resultImage);
-      // 2. 清空结果区
-      setResultImage(null);
-      // 3. 切换模式到 Inpainting
-      setAppMode(AppMode.INPAINTING_MODE);
-      // 4. 重置遮罩和提示词
-      setMaskImage(null);
-      setInpaintingPrompt('');
-      // 5. 自动打开 SketchPad 开始涂抹
+      // 只打开 SketchPad，不立即切换模式
+      // 模式切换在 handleSketchSave 中处理
       setSketchBackground(resultImage);
       setSketchMode('INPAINTING');
       setSketchPadMode('masking');
@@ -273,6 +266,12 @@ const App: React.FC = () => {
     } else if (sketchMode === 'INPAINTING') {
       // Inpainting 模式：保存遮罩图，切换到 INPAINTING_MODE
       if (maskDataUrl) {
+        // 如果是从 "Fix Defects" 进入（sketchBackground 来自 resultImage），
+        // 需要把它设为新的 originalImage
+        if (sketchBackground && sketchBackground !== originalImage) {
+          setOriginalImage(sketchBackground);
+          setInpaintingPrompt(''); // 重置提示词
+        }
         setMaskImage(maskDataUrl);
         setAppMode(AppMode.INPAINTING_MODE);
         setResultImage(null); // 清空之前的结果
