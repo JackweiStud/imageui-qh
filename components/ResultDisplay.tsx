@@ -70,7 +70,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
 
   return (
     <div className="relative w-full h-full min-h-[300px] bg-dark-surface rounded-2xl border border-brand-500/50 overflow-hidden shadow-2xl shadow-brand-500/10 group">
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10 pointer-events-none"></div>
       
       <img 
         src={resultImage} 
@@ -78,17 +78,18 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
         className="w-full h-full object-contain bg-black/40"
       />
       
-      {/* Top Controls */}
-      <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+      {/* Top Controls - 移动端始终显示，PC端 hover 显示 */}
+      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20 flex flex-wrap gap-1.5 sm:gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all md:transform md:translate-y-2 md:group-hover:translate-y-0">
         {/* 对比按钮 - 需要原图才显示 */}
         {originalImage && (
           <Button
             variant="secondary"
             onClick={() => setShowCompare(true)}
-            icon={<Columns size={16} />}
-            className="shadow-xl bg-white/90 hover:bg-white text-slate-900"
+            icon={<Columns size={14} className="sm:w-4 sm:h-4" />}
+            className="shadow-xl bg-white/90 hover:bg-white active:bg-slate-100 text-slate-900 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm"
           >
-            {t.compare}
+            <span className="hidden sm:inline">{t.compare}</span>
+            <span className="sm:hidden">{language === 'zh' ? '对比' : 'Compare'}</span>
           </Button>
         )}
         
@@ -97,11 +98,12 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
           <Button
             variant="primary"
             onClick={onInpaint}
-            icon={<BandageIcon size={16} />}
-            className="shadow-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 border-0"
+            icon={<BandageIcon size={14} />}
+            className="shadow-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 active:from-emerald-700 active:to-teal-700 border-0 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm"
             title={t.fixDefectsTooltip}
           >
-            {t.fixDefects}
+            <span className="hidden sm:inline">{t.fixDefects}</span>
+            <span className="sm:hidden">{language === 'zh' ? '修复' : 'Fix'}</span>
           </Button>
         )}
         
@@ -110,21 +112,23 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
           <Button
             variant="secondary"
             onClick={onEdit}
-            icon={<Sparkles size={16} />}
-            className="shadow-xl bg-white/90 hover:bg-white text-slate-900"
+            icon={<Sparkles size={14} className="sm:w-4 sm:h-4" />}
+            className="shadow-xl bg-white/90 hover:bg-white active:bg-slate-100 text-slate-900 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm"
             title={t.reImagineTooltip}
           >
-            {t.reImagine}
+            <span className="hidden sm:inline">{t.reImagine}</span>
+            <span className="sm:hidden">{language === 'zh' ? '重绘' : 'Edit'}</span>
           </Button>
         )}
         
         <Button 
           variant="primary" 
           onClick={handleDownload}
-          icon={<Download size={16} />}
-          className="shadow-xl"
+          icon={<Download size={14} className="sm:w-4 sm:h-4" />}
+          className="shadow-xl px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm"
         >
-          {t.download}
+          <span className="hidden sm:inline">{t.download}</span>
+          <span className="sm:hidden">{language === 'zh' ? '下载' : 'Save'}</span>
         </Button>
       </div>
 
@@ -138,7 +142,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
         />
       )}
 
-      <div className="absolute bottom-4 left-4 z-20 bg-brand-500/90 text-white px-3 py-1 rounded-full text-xs backdrop-blur-sm font-medium shadow-lg">
+      <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 z-20 bg-brand-500/90 text-white px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs backdrop-blur-sm font-medium shadow-lg">
         {t.aiGenerated}
       </div>
     </div>

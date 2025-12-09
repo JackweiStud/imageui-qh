@@ -212,26 +212,26 @@ const FeatureCard = ({ icon, color, title, description, onClick, delay }: any) =
   return (
     <button
       onClick={onClick}
-      className={`group relative p-8 rounded-3xl bg-dark-surface border border-white/5 transition-all duration-300 hover:-translate-y-1 text-left flex flex-col h-64 justify-between overflow-hidden ${cardHoverClasses[color]}`}
+      className={`group relative p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-dark-surface border border-white/5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] text-left flex flex-col min-h-[180px] sm:h-64 justify-between overflow-hidden ${cardHoverClasses[color]}`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className={`absolute top-0 right-0 p-12 opacity-0 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500`}>
+      <div className={`absolute top-0 right-0 p-8 sm:p-12 opacity-0 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500`}>
         {/* Clone icon for background effect */}
-        {React.cloneElement(icon, { size: 120 })}
+        {React.cloneElement(icon, { size: 100 })}
       </div>
 
       <div className="relative z-10">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 ${iconColorClasses[color]}`}>
-          {icon}
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 sm:mb-6 transition-all duration-300 ${iconColorClasses[color]}`}>
+          {React.cloneElement(icon, { size: 20 })}
         </div>
-        <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-        <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">
+        <h3 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">{title}</h3>
+        <p className="text-slate-400 text-xs sm:text-sm leading-relaxed line-clamp-2">
           {description}
         </p>
       </div>
 
-      <div className="relative z-10 flex items-center text-white/40 group-hover:text-white transition-colors text-sm font-medium mt-4">
-        Try Now <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
+      <div className="relative z-10 flex items-center text-white/40 group-hover:text-white active:text-brand-400 transition-colors text-xs sm:text-sm font-medium mt-3 sm:mt-4">
+        Try Now <ChevronRight size={14} className="sm:w-4 sm:h-4 ml-1 group-hover:translate-x-1 transition-transform" />
       </div>
     </button>
   );
