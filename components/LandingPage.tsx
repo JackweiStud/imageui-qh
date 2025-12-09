@@ -2,16 +2,17 @@
 
 import React from 'react';
 import { AppMode, Language } from '@/lib/types';
-import { Sparkles, Camera, ArrowRight, ImagePlus, Edit3, Layers, Eraser, Shirt, Play, Command, ChevronRight } from 'lucide-react';
+import { Sparkles, Camera, ArrowRight, ImagePlus, Edit3, Layers, Eraser, Shirt, Play, Command, ChevronRight, Globe } from 'lucide-react';
 import { TRANSLATIONS } from '@/lib/constants';
 import { useAuth } from './auth/AuthProvider';
 
 interface LandingPageProps {
   onSelectMode: (mode: AppMode) => void;
   language: Language;
+  onToggleLanguage: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language, onToggleLanguage }) => {
   const t = TRANSLATIONS[language];
   const { user, openAuthModal, signOut, credits } = useAuth();
 
@@ -41,7 +42,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                 onClick={() => signOut()}
                 className="text-sm text-slate-400 hover:text-white transition-colors"
               >
-                Sign Out
+                {t.signOut}
               </button>
             </div>
           ) : (
@@ -50,16 +51,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                 onClick={() => openAuthModal()}
                 className="hidden md:inline-flex px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
               >
-                Log in
+                {t.login}
               </button>
               <button
                 onClick={() => onSelectMode(AppMode.FREE_MODE)} // Direct access for "Get Started"
                 className="px-5 py-2.5 rounded-full bg-white text-black text-sm font-bold hover:bg-slate-200 transition-colors shadow-lg shadow-white/5"
               >
-                Get Started
+                {t.getStarted}
               </button>
             </>
           )}
+          <button
+            onClick={onToggleLanguage}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-colors text-slate-300 text-xs font-medium"
+          >
+            <Globe size={14} />
+            {language === 'en' ? 'English' : '中文'}
+          </button>
         </div>
       </nav>
 
@@ -67,20 +75,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
 
         {/* Hero Section */}
         <div className="w-full max-w-7xl px-6 pt-20 pb-24 md:pt-32 md:pb-32 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs md:text-sm text-brand-300 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <Sparkles size={14} />
-            <span>Powered by Gemini 2.0 Multimodal</span>
-          </div>
-
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[0.9] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 animate-in fade-in slide-in-from-bottom-6 duration-1000 fill-mode-both">
-            Sketch it.<br />
-            Prompt it.<br />
-            <span className="text-brand-400">Morph it.</span>
+            {t.landingHeroTitle1}<br />
+            {t.landingHeroTitle2}<br />
+            <span className="text-brand-400">{t.landingHeroTitle3}</span>
           </h1>
 
           <p className="max-w-2xl mx-auto text-lg md:text-xl text-slate-400 mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200 fill-mode-both">
-            The infinite canvas where your ideas become reality.
-            Use AI to transform photos, sketches, and prompts into stunning visuals in seconds.
+            {t.landingHeroDesc}
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300 fill-mode-both">
@@ -88,7 +90,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
               onClick={() => onSelectMode(AppMode.FREE_MODE)}
               className="group relative px-8 py-4 rounded-full bg-brand-500 text-black font-bold text-lg hover:bg-brand-400 transition-all shadow-xl shadow-brand-500/20 hover:shadow-brand-500/40 hover:-translate-y-1 w-full md:w-auto"
             >
-              Start Creating <ArrowRight className="inline-block ml-2 group-hover:translate-x-1 transition-transform" />
+              {t.startCreating} <ArrowRight className="inline-block ml-2 group-hover:translate-x-1 transition-transform" />
             </button>
             <button
               onClick={() => {
@@ -97,7 +99,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
               }}
               className="px-8 py-4 rounded-full bg-white/5 text-white font-semibold text-lg hover:bg-white/10 border border-white/10 transition-all w-full md:w-auto"
             >
-              Explore Features
+              {t.exploreFeatures}
             </button>
           </div>
         </div>
@@ -106,7 +108,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
         <div id="features-grid" className="w-full max-w-7xl px-6 pb-24">
           <div className="flex items-center gap-4 mb-12">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-            <span className="text-slate-500 text-sm font-medium uppercase tracking-widest">Choose Your Workflow</span>
+            <span className="text-slate-500 text-sm font-medium uppercase tracking-widest">{t.chooseWorkflow}</span>
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
           </div>
 
@@ -178,7 +180,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
 
       {/* Simple Footer */}
       <footer className="w-full py-8 border-t border-white/5 text-center text-slate-600 text-sm">
-        <p>© 2025 StyleMorph AI. All rights reserved.</p>
+        <p>{t.footerCopyright}</p>
       </footer>
     </div>
   );

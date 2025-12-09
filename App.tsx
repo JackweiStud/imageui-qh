@@ -27,12 +27,20 @@ import {
 import { Sparkles, Github, Globe } from 'lucide-react';
 
 import { useAuth } from './components/auth/AuthProvider';
+import { saveLanguage, loadLanguage } from '@/lib/languageStorage';
 
 const App: React.FC = () => {
   // -- State Management --
-  const { user } = useAuth();
+  const { user, credits } = useAuth();
   const [appMode, setAppMode] = useState<AppMode>(AppMode.LANDING);
   const [language, setLanguage] = useState<Language>('en');
+
+  useEffect(() => {
+    const saved = loadLanguage();
+    if (saved) {
+      setLanguage(saved);
+    }
+  }, []);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -94,7 +102,11 @@ const App: React.FC = () => {
   };
 
   const toggleLanguage = () => {
-    setLanguage(prev => prev === 'en' ? 'zh' : 'en');
+    setLanguage(prev => {
+      const newLang = prev === 'en' ? 'zh' : 'en';
+      saveLanguage(newLang);
+      return newLang;
+    });
   };
 
   // Helper to convert File to Base64 for custom uploads
@@ -359,12 +371,11 @@ const App: React.FC = () => {
 
   if (appMode === AppMode.LANDING) {
     return (
-      <div className="relative">
-        <div className="absolute top-4 right-4 z-50">
-          <LanguageSwitcher />
-        </div>
-        <LandingPage onSelectMode={setAppMode} language={language} />
-      </div>
+      <LandingPage
+        onSelectMode={setAppMode}
+        language={language}
+        onToggleLanguage={toggleLanguage}
+      />
     );
   }
 
@@ -410,28 +421,26 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-lg font-bold tracking-tight text-white">StyleMorph AI</h1>
         </div>
-        <LanguageSwitcher />
       </header>
 
       <main className={`lg:mr-96 flex flex-col min-h-screen ${appMode === AppMode.REFERENCE_MODE ? 'pb-48' : ''}`}>
         {/* Desktop Header */}
         <header className="hidden lg:flex items-center justify-between px-8 py-6">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-500/20 bg-gradient-to-br from-brand-400 to-brand-600`}>
-                <Sparkles size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white leading-none mb-1">StyleMorph AI</h1>
-                <p className="text-xs text-slate-400">
-                  {getHeaderTitle()}
-                </p>
-              </div>
+          {/* Left Side: Logo + Title */}
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-500/20 bg-gradient-to-br from-brand-400 to-brand-600`}>
+              <Sparkles size={24} />
             </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-white leading-none mb-1">StyleMorph AI</h1>
+              <p className="text-xs text-slate-400">
+                {getHeaderTitle()}
+              </p>
+            </div>
+          </div>
 
-            {/* User Info / Login Prompt (Left Side as requested) */}
-            <div className="h-8 w-px bg-white/10 mx-2"></div>
-
+          {/* Right Side: User Info + GitHub */}
+          <div className="flex items-center gap-4">
             {user ? (
               <div className="flex items-center gap-3 animate-in fade-in duration-300">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4F46F] to-emerald-500 flex items-center justify-center text-black font-bold text-xs shadow-md">
@@ -439,7 +448,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs font-medium text-white">{user.email}</span>
-                  <span className="text-[10px] text-brand-400">Free Plan</span>
+                  <span className="text-[10px] text-brand-400">{language === 'zh' ? '当前积分' : 'Balance'}: {credits}</span>
                 </div>
               </div>
             ) : (
@@ -448,10 +457,7 @@ const App: React.FC = () => {
                 <span className="text-xs font-medium">{language === 'zh' ? '请先登录' : 'Please Login'}</span>
               </div>
             )}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <LanguageSwitcher />
+            <div className="h-6 w-px bg-white/10"></div>
             <a href="#" className="text-slate-400 hover:text-white transition-colors">
               <Github size={20} />
             </a>

@@ -89,7 +89,6 @@ export const TRANSLATIONS = {
     virtualTryOn: "Scene Replacement",
     virtualTryOnDesc: "Intelligently replace photo backgrounds. Upload your photo and choose a new scene (Beach, Shanghai Bund Night, Snow Mountain Summit, Football Field) while keeping the subject intact.",
     tryReference: "Start Scene Replacement",
-    landingPowered: "Powered by Google Gemini 2.5 Multimodal",
     selectReferenceScene: "Select Background Scene",
     refStep1: "Upload your photo in the main area.",
     refStep2: "Select a target background scene from the bottom bar.",
@@ -182,6 +181,17 @@ export const TRANSLATIONS = {
     startTryOn: "Start Try-On",
     loginToSave: "Sign in to save history",
     insufficientCredits: "Insufficient credits (Requires 10)",
+    // Landing Page
+    login: "Log in",
+    signOut: "Sign Out",
+    getStarted: "Get Started",
+    landingHeroTitle1: "Sketch it",
+    landingHeroTitle2: "Prompt it",
+    landingHeroTitle3: "Morph it",
+    landingHeroDesc: "The infinite canvas where your ideas become reality. Use AI to transform photos, sketches, and prompts into stunning visuals in seconds.",
+    exploreFeatures: "Explore Features",
+    chooseWorkflow: "Choose Your Workflow",
+    footerCopyright: "© 2025 StyleMorph AI. All rights reserved."
   },
   zh: {
     backToMenu: "返回菜单",
@@ -224,7 +234,6 @@ export const TRANSLATIONS = {
     virtualTryOn: "场景替换",
     virtualTryOnDesc: "智能替换照片背景。上传您的照片并选择新场景（海滩、上海外滩夜景、雪山登顶、足球场中央），AI将保持主体不变。",
     tryReference: "开始场景替换",
-    landingPowered: "由 Google Gemini 2.5 多模态模型驱动",
     selectReferenceScene: "选择背景场景",
     refStep1: "在主区域上传您的照片。",
     refStep2: "从底部栏选择目标背景场景。",
@@ -317,6 +326,17 @@ export const TRANSLATIONS = {
     startTryOn: "开始试衣",
     loginToSave: "登录以保存历史",
     insufficientCredits: "积分不足 (需要 10 积分)",
+    // Landing Page
+    login: "登录",
+    signOut: "退出登录",
+    getStarted: "开始使用",
+    landingHeroTitle1: "草图勾勒",
+    landingHeroTitle2: "灵感提示",
+    landingHeroTitle3: "万象幻化",
+    landingHeroDesc: "无限画布，创意成真。利用 AI 将照片、草图和提示词瞬间转化为惊艳的视觉作品。",
+    exploreFeatures: "探索功能",
+    chooseWorkflow: "选择工作流",
+    footerCopyright: "© 2025 StyleMorph AI. 保留所有权利。"
   }
 };
 
