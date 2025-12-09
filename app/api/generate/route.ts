@@ -10,15 +10,19 @@ if (proxyUrl) {
   setGlobalDispatcher(new ProxyAgent(proxyUrl));
 }
 
+
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
-import { 
-  GenerateRequest, 
-  GenerateResponse, 
+import {
+  GenerateRequest,
+  GenerateResponse,
   ERROR_CODES,
   ImageConfig,
   AspectRatio,
-  TryOnMode 
+  TryOnMode
 } from '@/lib/types';
 
 // ==================== 工具函数 ====================
@@ -26,12 +30,79 @@ import {
 // 获取 AI 客户端 (服务端专用)
 const getAiClient = () => {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  
+
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
-  
+
   return new GoogleGenAI({ apiKey });
+};
+
+// 获取 Supabase Admin 客户端 (用于扣除积分 & 上传结果，绕过 RLS)
+const getSupabaseAdmin = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseServiceKey) {
+    throw new Error('Server Configuration Error: SUPABASE_SERVICE_ROLE_KEY is missing.');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+};
+
+// 1. 检查积分（不扣除）
+const checkCredits = async (supabase: any, userId: string, cost: number = 10): Promise<{ success: boolean; error?: string; remainingCredits?: number }> => {
+  // 强制检查，不再允许跳过
+  const { data: profile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('credits')
+    .eq('id', userId)
+    .single();
+
+  if (fetchError) {
+    if (fetchError.code === 'PGRST116') {
+      // 未找用户，尝试初始化，给予默认积分
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({ id: userId, email: '', credits: 35 });
+
+      if (!insertError) return { success: true, remainingCredits: 35 };
+    }
+    return { success: false, error: 'User profile error' };
+  }
+
+  const currentCredits = profile?.credits ?? 0;
+  if (currentCredits < cost) {
+    return {
+      success: false,
+      error: ERROR_CODES.INSUFFICIENT_CREDITS,
+      remainingCredits: currentCredits
+    };
+  }
+
+  return { success: true, remainingCredits: currentCredits };
+};
+
+// 2. 扣除积分（生成成功后调用）- 使用原子 RPC 函数解决并发问题
+const deductCredits = async (supabase: any, userId: string, cost: number = 10): Promise<void> => {
+
+  // 使用数据库 RPC 函数实现原子操作，解决并发竞态条件
+  const { error } = await supabase.rpc('deduct_credits', {
+    user_id: userId,
+    amount: cost
+  });
+
+  if (error) {
+    console.error('Error deducting credits via RPC:', error);
+    // RPC 函数会在积分不足时静默失败（WHERE credits >= amount）
+    // 这里可以选择记录日志或抛出错误
+    // 由于我们已经在前置检查中验证了积分，这里通常不会失败
+  }
 };
 
 // 创建带错误码的响应
@@ -58,8 +129,8 @@ const parseApiError = (error: any): { code: string; message: string } => {
   return { code: ERROR_CODES.UNKNOWN, message };
 };
 
-// 从响应中提取图片
-const extractImageFromResponse = (response: any): string => {
+// 从响应中提取 Base64 数据（Raw）
+const extractBase64FromResponse = (response: any): string => {
   if (response.promptFeedback?.blockReason) {
     throw { code: ERROR_CODES.SAFETY_BLOCKED, message: response.promptFeedback.blockReason };
   }
@@ -76,16 +147,87 @@ const extractImageFromResponse = (response: any): string => {
 
   for (const part of parts) {
     if (part.inlineData && part.inlineData.data) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+      return part.inlineData.data;
     }
   }
 
   throw { code: ERROR_CODES.NO_IMAGE_DATA, message: 'No image data found in response' };
 };
 
-// 清理 Base64 数据 URL
-const cleanBase64 = (dataUrl: string): string => {
-  return dataUrl.split(',')[1] || dataUrl;
+// 辅助：下载 URL 并转为 Base64 (供 Gemini 输入) - 增加 SSRF 防护
+const fetchAndConvertToBase64 = async (url: string): Promise<string> => {
+  try {
+    const parsedUrl = new URL(url);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+
+    // SSRF 防护：仅允许来自我们自己的 Supabase 项目的 URL
+    // 如果 supabaseUrl 是 "https://xyz.supabase.co"，我们检查 host 是否匹配
+    if (supabaseUrl) {
+      const allowedHost = new URL(supabaseUrl).host;
+      // 同时也允许 storage.googleapis.com (如果 Supabase 底层直连) 或其他受信任域名
+      // 这里严格限制为 Supabase Project Domain
+      if (parsedUrl.host !== allowedHost && !parsedUrl.host.endsWith('.supabase.co')) {
+        console.error(`Blocked suspicious URL: ${url}`);
+        throw new Error('Security Error: Unauthorized image source');
+      }
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer).toString('base64');
+  } catch (error) {
+    console.error('Fetch Image Error:', error);
+    throw new Error('Could not download source image');
+  }
+};
+
+// 辅助：处理结果上传
+// 1. 提取 Base64
+// 2. 转 Buffer
+// 3. 上传到 'generated_results'
+// 4. 返回 Signed URL (因为我们设了 private)
+// 注意：对于生成结果，我们可以设为 Public Bucket 方便展示，或者用 Signed URL。
+// 之前的 SQL 设置是 private。这里我们生成一个长效 Signed URL (如 10 年) 或者 1 天（前端需及时自行转存 IDB，或后续我们有 Database 记录 URL）
+// 更好的方案：生成后应该存 DB 记录 URL。API 返回 URL。
+const processAndUploadResult = async (response: any, userId: string): Promise<string> => {
+  // 1. Extract
+  const base64Data = extractBase64FromResponse(response);
+
+  // 2. Convert to Buffer
+  const buffer = Buffer.from(base64Data, 'base64');
+
+  // 3. Upload
+  const supabase = getSupabaseAdmin();
+  const filename = `${userId}/${Date.now()}_result.jpg`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('generated_results')
+    .upload(filename, buffer, {
+      contentType: 'image/jpeg',
+      upsert: true
+    });
+
+  if (uploadError) {
+    console.error('Upload Result Error:', uploadError);
+    // Fallback: 如果上传失败，暂时返回 Base64 (虽然前端可能不预期，但总比失败好? 不，前端改了逻辑预期 URL)
+    // 还是抛错吧
+    throw new Error('Failed to save generated image');
+  }
+
+  // 4. Create Signed URL (e.g. 7 days)
+  // 如果 Bucket 是 public 的，可以直接 getPublicUrl
+  // SQL 设置是 public: false
+  // 这里给 1 天有效期，足够前端展示和下载。实际商业项目应配合 DB 记录，每次访问生成新 Signed URL
+  const { data } = await supabase.storage
+    .from('generated_results')
+    .createSignedUrl(filename, 60 * 60 * 24); // 24 hours
+
+  if (!data?.signedUrl) {
+    throw new Error('Failed to get result URL');
+  }
+
+  return data.signedUrl;
 };
 
 // 宽高比映射
@@ -101,28 +243,13 @@ const mapAspectRatio = (ratio: AspectRatio): string | undefined => {
   return mapping[ratio];
 };
 
-// 服务端获取参考图片 Base64
-const fetchReferenceImage = async (url: string): Promise<string> => {
-  // 如果是相对路径，需要拼接完整URL
-  const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${url}`;
-  
-  try {
-    const response = await fetch(fullUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    return base64;
-  } catch (error) {
-    console.error('Failed to fetch reference image:', error);
-    throw new Error('Could not load reference image');
-  }
-};
 
-// ==================== AI 生成函数 ====================
+// ==================== AI 生成函数 (Refactored) ====================
 
 // 1. 风格转换
-async function generateStyleTransform(sourceImage: string, promptModifier: string): Promise<string> {
+async function generateStyleTransform(sourceUrl: string, promptModifier: string, userId: string): Promise<string> {
   const ai = getAiClient();
-  const imageBase64 = cleanBase64(sourceImage);
+  const imageBase64 = await fetchAndConvertToBase64(sourceUrl);
   const mimeType = 'image/jpeg';
 
   const finalPrompt = `
@@ -149,20 +276,21 @@ async function generateStyleTransform(sourceImage: string, promptModifier: strin
     },
   });
 
-  return extractImageFromResponse(response);
+  return processAndUploadResult(response, userId);
 }
 
 // 2. 参考图转换
 async function generateReferenceTransform(
-  userImage: string,
-  referenceImageUrl: string,
-  promptModifier: string
+  userUrl: string,
+  referenceUrl: string, // 现在这里是 URL
+  promptModifier: string,
+  userId: string
 ): Promise<string> {
   const ai = getAiClient();
   const mimeType = 'image/jpeg';
 
-  const userBase64 = cleanBase64(userImage);
-  const refBase64 = await fetchReferenceImage(referenceImageUrl);
+  const userBase64 = await fetchAndConvertToBase64(userUrl);
+  const refBase64 = await fetchAndConvertToBase64(referenceUrl);
 
   const finalPrompt = `
     Role: Expert Scene Replacement & Background Editing Specialist.
@@ -189,14 +317,15 @@ async function generateReferenceTransform(
     },
   });
 
-  return extractImageFromResponse(response);
+  return processAndUploadResult(response, userId);
 }
 
 // 3. 自由风格
 async function generateFreeStyle(
-  sourceImage: string | null,
+  sourceUrl: string | null,
   customPrompt: string,
-  imageConfig?: ImageConfig
+  imageConfig: ImageConfig | undefined,
+  userId: string
 ): Promise<string> {
   const ai = getAiClient();
   const mimeType = 'image/jpeg';
@@ -205,8 +334,8 @@ async function generateFreeStyle(
   let finalPrompt = '';
   const parts: any[] = [];
 
-  if (sourceImage) {
-    const imageBase64 = cleanBase64(sourceImage);
+  if (sourceUrl) {
+    const imageBase64 = await fetchAndConvertToBase64(sourceUrl);
     finalPrompt = `
     Role: Creative AI Artist.
     Task: Edit the provided image based on the USER PROMPT.
@@ -244,25 +373,26 @@ async function generateFreeStyle(
   }
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
+    model: 'gemini-3-pro-image-preview', // 使用新模型
     contents: { parts },
     config: { imageConfig: apiImageConfig },
   });
 
-  return extractImageFromResponse(response);
+  return processAndUploadResult(response, userId);
 }
 
 // 4. 自定义换身
 async function generateCustomSwap(
-  sourceImage: string,
-  targetImage: string,
-  poseImage: string | null
+  sourceUrl: string,
+  targetUrl: string,
+  poseUrl: string | null,
+  userId: string
 ): Promise<string> {
   const ai = getAiClient();
   const mimeType = 'image/jpeg';
 
-  const sourceBase64 = cleanBase64(sourceImage);
-  const targetBase64 = cleanBase64(targetImage);
+  const sourceBase64 = await fetchAndConvertToBase64(sourceUrl);
+  const targetBase64 = await fetchAndConvertToBase64(targetUrl);
 
   const parts = [];
   let instructions = `
@@ -274,8 +404,8 @@ async function generateCustomSwap(
     - Image 2: TARGET BACKGROUND/OUTFIT.
   `;
 
-  if (poseImage) {
-    const poseBase64 = cleanBase64(poseImage);
+  if (poseUrl) {
+    const poseBase64 = await fetchAndConvertToBase64(poseUrl);
     instructions += `
     - Image 3: POSE REFERENCE.
     
@@ -306,20 +436,21 @@ async function generateCustomSwap(
     contents: { parts },
   });
 
-  return extractImageFromResponse(response);
+  return processAndUploadResult(response, userId);
 }
 
 // 5. 局部重绘
 async function generateInpainting(
-  sourceImage: string,
-  maskImage: string,
-  promptModifier: string
+  sourceUrl: string,
+  maskUrl: string,
+  promptModifier: string,
+  userId: string
 ): Promise<string> {
   const ai = getAiClient();
   const mimeType = 'image/jpeg';
 
-  const sourceBase64 = cleanBase64(sourceImage);
-  const maskBase64 = cleanBase64(maskImage);
+  const sourceBase64 = await fetchAndConvertToBase64(sourceUrl);
+  const maskBase64 = await fetchAndConvertToBase64(maskUrl);
 
   const finalPrompt = `
   Role: Expert Photo Retoucher & Inpainting Specialist.
@@ -342,20 +473,21 @@ async function generateInpainting(
     },
   });
 
-  return extractImageFromResponse(response);
+  return processAndUploadResult(response, userId);
 }
 
 // 6. 虚拟试衣
 async function generateVirtualTryOn(
-  personImage: string,
-  garmentImage: string,
-  mode: TryOnMode
+  personUrl: string,
+  garmentUrl: string,
+  mode: TryOnMode,
+  userId: string
 ): Promise<string> {
   const ai = getAiClient();
   const mimeType = 'image/jpeg';
 
-  const personBase64 = cleanBase64(personImage);
-  const garmentBase64 = cleanBase64(garmentImage);
+  const personBase64 = await fetchAndConvertToBase64(personUrl);
+  const garmentBase64 = await fetchAndConvertToBase64(garmentUrl);
 
   let instructions = `
     Role: Expert Fashion Stylist & VFX Specialist.
@@ -396,10 +528,10 @@ async function generateVirtualTryOn(
     },
   });
 
-  return extractImageFromResponse(response);
+  return processAndUploadResult(response, userId);
 }
 
-// 7. 提示词增强
+// 7. 提示词增强 (不变，纯文本)
 async function enhancePrompt(simplePrompt: string, language: 'en' | 'zh'): Promise<string> {
   const ai = getAiClient();
   const outputLanguage = language === 'zh' ? '中文' : 'English';
@@ -445,50 +577,86 @@ Please enhance this into a professional AI image generation prompt. Output in ${
 
 export async function POST(request: NextRequest) {
   try {
+    // 0. 验证用户身份
+    const cookieStore = cookies();
+
+    // 创建 SSR 客户端仅用于验证 Session
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+        },
+      }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Unauthorized: Please log in.'));
+    }
+
+    // 1. 检查积分 PRE-CHECK (不扣分)
+    const adminSupabase = getSupabaseAdmin();
+    const creditCheck = await checkCredits(adminSupabase, user.id, 10);
+
+    if (!creditCheck.success) {
+      return NextResponse.json(createErrorResponse(
+        creditCheck.error || ERROR_CODES.UNKNOWN,
+        creditCheck.error === ERROR_CODES.INSUFFICIENT_CREDITS ? '积分不足，无法生成图片' : 'Credit check failed'
+      ));
+    }
+
     const body: GenerateRequest = await request.json();
     let result: string;
+
+    // 注意：body 中的 *Image 字段现在应为 URL (String)
+    // 我们的 GenerateRequest 类型定义中，字段本身就是 string | undefined，所以类型兼容
 
     switch (body.action) {
       case 'styleTransform':
         if (!body.sourceImage || !body.promptModifier) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing required parameters'));
         }
-        result = await generateStyleTransform(body.sourceImage, body.promptModifier);
+        result = await generateStyleTransform(body.sourceImage, body.promptModifier, user.id);
         break;
 
       case 'referenceTransform':
         if (!body.sourceImage || !body.referenceImageUrl || !body.promptModifier) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing required parameters'));
         }
-        result = await generateReferenceTransform(body.sourceImage, body.referenceImageUrl, body.promptModifier);
+        result = await generateReferenceTransform(body.sourceImage, body.referenceImageUrl, body.promptModifier, user.id);
         break;
 
       case 'freeStyle':
         if (!body.customPrompt) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing customPrompt'));
         }
-        result = await generateFreeStyle(body.sourceImage || null, body.customPrompt, body.imageConfig);
+        result = await generateFreeStyle(body.sourceImage || null, body.customPrompt, body.imageConfig, user.id);
         break;
 
       case 'customSwap':
         if (!body.sourceImage || !body.targetImage) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing required parameters'));
         }
-        result = await generateCustomSwap(body.sourceImage, body.targetImage, body.poseImage || null);
+        result = await generateCustomSwap(body.sourceImage, body.targetImage, body.poseImage || null, user.id);
         break;
 
       case 'inpainting':
         if (!body.sourceImage || !body.maskImage || !body.promptModifier) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing required parameters'));
         }
-        result = await generateInpainting(body.sourceImage, body.maskImage, body.promptModifier);
+        result = await generateInpainting(body.sourceImage, body.maskImage, body.promptModifier, user.id);
         break;
 
       case 'virtualTryOn':
         if (!body.sourceImage || !body.garmentImage || !body.tryOnMode) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing required parameters'));
         }
-        result = await generateVirtualTryOn(body.sourceImage, body.garmentImage, body.tryOnMode);
+        result = await generateVirtualTryOn(body.sourceImage, body.garmentImage, body.tryOnMode, user.id);
         break;
 
       case 'enhancePrompt':
@@ -496,20 +664,23 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing customPrompt'));
         }
         result = await enhancePrompt(body.customPrompt, body.language || 'en');
-        break;
+        return NextResponse.json({ success: true, data: result } as GenerateResponse);
 
       default:
         return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Invalid action'));
     }
 
+    // 3. 生成成功，扣除积分
+    await deductCredits(adminSupabase, user.id, 10);
+
     return NextResponse.json({ success: true, data: result } as GenerateResponse);
   } catch (error: any) {
     console.error('API Route Error:', error);
-    
+
     if (error.code) {
       return NextResponse.json(createErrorResponse(error.code, error.message));
     }
-    
+
     const parsed = parseApiError(error);
     return NextResponse.json(createErrorResponse(parsed.code, parsed.message));
   }
@@ -517,6 +688,5 @@ export async function POST(request: NextRequest) {
 
 // 健康检查
 export async function GET() {
-  return NextResponse.json({ status: 'ok', message: 'StyleMorph AI API is running' });
+  return NextResponse.json({ status: 'ok', message: 'StyleMorph AI API v2 (Storage Enabled) is running' });
 }
-

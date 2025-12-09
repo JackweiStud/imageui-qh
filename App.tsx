@@ -10,37 +10,59 @@ import { HistoryDrawer } from './components/HistoryDrawer';
 import { HistoryPreviewModal } from './components/HistoryPreviewModal';
 import { TransformationMode, StylePreset, ReferencePreset, AppMode, Language, ImageConfig, AspectRatio, ImageSize, HistoryItem, TryOnMode } from '@/lib/types';
 import { PRESETS, REFERENCE_PRESETS, TRANSLATIONS, ERROR_MESSAGES } from '@/lib/constants';
-import { 
-  generateImageTransformation, 
+import {
+  generateImageTransformation,
   generateReferenceTransformation,
   generateFreeStyleTransformation,
   generateCustomSwapTransformation,
   generateInpaintingTransformation,
   generateVirtualTryOnTransformation
 } from '@/lib/api-client';
-import { 
-  getHistory, 
-  saveHistory, 
-  deleteHistoryItem, 
-  clearHistory 
+import {
+  getHistory,
+  saveHistory,
+  deleteHistoryItem,
+  clearHistory
 } from '@/lib/historyService';
 import { Sparkles, Github, Globe } from 'lucide-react';
 
+import { useAuth } from './components/auth/AuthProvider';
+import { saveLanguage, loadLanguage } from '@/lib/languageStorage';
+
 const App: React.FC = () => {
   // -- State Management --
+  const { user, credits } = useAuth();
   const [appMode, setAppMode] = useState<AppMode>(AppMode.LANDING);
   const [language, setLanguage] = useState<Language>('en');
+
+  // Handle global errors (e.g. from Auth callback)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorMsg = params.get('error_description') || params.get('error');
+    if (errorMsg) {
+      setError(decodeURIComponent(errorMsg));
+      // Clean up the URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    const saved = loadLanguage();
+    if (saved) {
+      setLanguage(saved);
+    }
+  }, []);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // SketchPad State
   const [showSketchPad, setShowSketchPad] = useState(false);
   const [sketchBackground, setSketchBackground] = useState<string | null>(null);
   const [sketchMode, setSketchMode] = useState<'POSE' | 'EDIT_RESULT' | 'INPAINTING'>('POSE');
   const [sketchPadMode, setSketchPadMode] = useState<'drawing' | 'masking'>('drawing');
-  
+
   // Style Mode State
   const [selectedStyleMode, setSelectedStyleMode] = useState<TransformationMode>(TransformationMode.CLOTHING);
   const [selectedStyle, setSelectedStyle] = useState<StylePreset>(PRESETS[TransformationMode.CLOTHING][0]);
@@ -91,7 +113,11 @@ const App: React.FC = () => {
   };
 
   const toggleLanguage = () => {
-    setLanguage(prev => prev === 'en' ? 'zh' : 'en');
+    setLanguage(prev => {
+      const newLang = prev === 'en' ? 'zh' : 'en';
+      saveLanguage(newLang);
+      return newLang;
+    });
   };
 
   // Helper to convert File to Base64 for custom uploads
@@ -105,7 +131,7 @@ const App: React.FC = () => {
 
   const handleGenerate = async () => {
     // Basic validation moved inside logic to support Free Mode without image
-    
+
     setIsGenerating(true);
     setError(null);
     setResultImage(null);
@@ -121,8 +147,8 @@ const App: React.FC = () => {
         if (!originalImage) throw new Error("Please upload an image first.");
         // Logic 2: Two Images (User + Preset URL)
         result = await generateReferenceTransformation(
-          originalImage, 
-          selectedReference.imageUrl, 
+          originalImage,
+          selectedReference.imageUrl,
           selectedReference.promptModifier
         );
       } else if (appMode === AppMode.FREE_MODE) {
@@ -134,8 +160,8 @@ const App: React.FC = () => {
         // Logic 4: Custom Swap (User + Custom Target + Optional Pose)
         if (!customTargetImage) throw new Error("Please upload a target image.");
         result = await generateCustomSwapTransformation(
-          originalImage, 
-          customTargetImage, 
+          originalImage,
+          customTargetImage,
           customPoseImage
         );
       } else if (appMode === AppMode.INPAINTING_MODE) {
@@ -160,9 +186,9 @@ const App: React.FC = () => {
       } else {
         throw new Error("Invalid Mode");
       }
-      
+
       setResultImage(result);
-      
+
       // 保存到历史记录
       const savedItem = await saveHistory({
         originalImage,
@@ -180,7 +206,7 @@ const App: React.FC = () => {
         tryOnMode: appMode === AppMode.VIRTUAL_TRY_ON ? tryOnMode : undefined,
         tryOnReferenceImage: appMode === AppMode.VIRTUAL_TRY_ON ? tryOnReferenceImage : undefined,
       });
-      
+
       if (savedItem) {
         const updatedHistory = await getHistory();
         setHistory(updatedHistory);
@@ -289,11 +315,11 @@ const App: React.FC = () => {
   const handleHistoryRestore = (item: HistoryItem) => {
     // 恢复模式
     setAppMode(item.appMode);
-    
+
     // 恢复图片
     setOriginalImage(item.originalImage);
     setResultImage(item.resultImage);
-    
+
     // 根据模式恢复具体参数
     if (item.appMode === AppMode.STYLE_MODE) {
       if (item.selectedStyleMode) {
@@ -323,7 +349,7 @@ const App: React.FC = () => {
       if (item.tryOnMode) setTryOnMode(item.tryOnMode);
       setTryOnReferenceImage(item.tryOnReferenceImage || null);
     }
-    
+
     // 关闭历史抽屉和预览模态框
     setSelectedHistoryItem(null);
     setIsHistoryOpen(false);
@@ -331,7 +357,7 @@ const App: React.FC = () => {
 
   // -- Language Switcher Component --
   const LanguageSwitcher = () => (
-    <button 
+    <button
       onClick={toggleLanguage}
       className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-surface border border-dark-border hover:border-slate-500 transition-colors text-slate-300 text-xs font-medium"
     >
@@ -341,27 +367,26 @@ const App: React.FC = () => {
   );
 
   const getHeaderTitle = () => {
-     switch(appMode) {
-       case AppMode.STYLE_MODE: return t.modeStyle;
-       case AppMode.REFERENCE_MODE: return t.modeReference;
-       case AppMode.FREE_MODE: return t.modeFree;
-       case AppMode.CUSTOM_REF_MODE: return t.modeCustom;
-       case AppMode.INPAINTING_MODE: return language === 'zh' ? '局部重绘模式' : 'Inpainting Mode';
-       case AppMode.VIRTUAL_TRY_ON: return language === 'zh' ? '虚拟试衣模式' : 'Virtual Try-On Mode';
-       default: return "StyleMorph AI";
-     }
+    switch (appMode) {
+      case AppMode.STYLE_MODE: return t.modeStyle;
+      case AppMode.REFERENCE_MODE: return t.modeReference;
+      case AppMode.FREE_MODE: return t.modeFree;
+      case AppMode.CUSTOM_REF_MODE: return t.modeCustom;
+      case AppMode.INPAINTING_MODE: return language === 'zh' ? '局部重绘模式' : 'Inpainting Mode';
+      case AppMode.VIRTUAL_TRY_ON: return language === 'zh' ? '虚拟试衣模式' : 'Virtual Try-On Mode';
+      default: return "StyleMorph AI";
+    }
   };
 
   // -- Render --
 
   if (appMode === AppMode.LANDING) {
     return (
-      <div className="relative">
-        <div className="absolute top-4 right-4 z-50">
-          <LanguageSwitcher />
-        </div>
-        <LandingPage onSelectMode={setAppMode} language={language} />
-      </div>
+      <LandingPage
+        onSelectMode={setAppMode}
+        language={language}
+        onToggleLanguage={toggleLanguage}
+      />
     );
   }
 
@@ -390,9 +415,9 @@ const App: React.FC = () => {
 
       {/* Sketch Pad Modal */}
       {showSketchPad && (
-        <SketchPad 
-          onSave={handleSketchSave} 
-          onClose={() => setShowSketchPad(false)} 
+        <SketchPad
+          onSave={handleSketchSave}
+          onClose={() => setShowSketchPad(false)}
           language={language}
           backgroundImage={sketchBackground}
           mode={sketchPadMode}
@@ -402,34 +427,60 @@ const App: React.FC = () => {
       {/* Mobile/Tablet Header */}
       <header className="lg:hidden flex items-center justify-between p-4 border-b border-dark-border bg-dark-surface/50 backdrop-blur-md sticky top-0 z-30">
         <div className="flex items-center gap-2">
-           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg bg-brand-500`}>
-             <Sparkles size={18} />
-           </div>
-           <h1 className="text-lg font-bold tracking-tight text-white">StyleMorph AI</h1>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg bg-brand-500`}>
+            <Sparkles size={18} />
+          </div>
+          <h1 className="text-lg font-bold tracking-tight text-white">StyleMorph AI</h1>
         </div>
-        <LanguageSwitcher />
       </header>
 
       <main className={`lg:mr-96 flex flex-col min-h-screen ${appMode === AppMode.REFERENCE_MODE ? 'pb-48' : ''}`}>
         {/* Desktop Header */}
         <header className="hidden lg:flex items-center justify-between px-8 py-6">
-           <div className="flex items-center gap-3">
-             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-500/20 bg-gradient-to-br from-brand-400 to-brand-600`}>
-               <Sparkles size={24} />
-             </div>
-             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white">StyleMorph AI</h1>
-                <p className="text-xs text-slate-400">
-                   {getHeaderTitle()}
-                </p>
-             </div>
-           </div>
-           <div className="flex items-center gap-4">
-              <LanguageSwitcher />
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <Github size={20} />
-              </a>
-           </div>
+          {/* Left Side: Logo + Title */}
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-500/20 bg-gradient-to-br from-brand-400 to-brand-600`}>
+              <Sparkles size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-white leading-none mb-1">StyleMorph AI</h1>
+              <p className="text-xs text-slate-400">
+                {getHeaderTitle()}
+              </p>
+            </div>
+          </div>
+
+          {/* Right Side: User Info + GitHub */}
+          <div className="flex items-center gap-4">
+            {user ? (
+              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt="Avatar"
+                    className="w-8 h-8 rounded-full border border-white/10 shadow-md object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4F46F] to-emerald-500 flex items-center justify-center text-black font-bold text-xs shadow-md">
+                    {user.email?.[0].toUpperCase() || 'U'}
+                  </div>
+                )}
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-white">{user.email}</span>
+                  <span className="text-[10px] text-brand-400">{language === 'zh' ? '当前积分' : 'Balance'}: {credits}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 animate-in fade-in duration-300 text-slate-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                <span className="text-xs font-medium">{language === 'zh' ? '请先登录' : 'Please Login'}</span>
+              </div>
+            )}
+            <div className="h-6 w-px bg-white/10"></div>
+            <a href="#" className="text-slate-400 hover:text-white transition-colors">
+              <Github size={20} />
+            </a>
+          </div>
         </header>
 
         {/* Workspace Content */}
@@ -442,7 +493,7 @@ const App: React.FC = () => {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-[600px]">
-            
+
             {/* Input Section */}
             <div className="flex flex-col gap-4 h-full">
               <div className="flex items-center justify-between mb-1 px-1">
@@ -454,7 +505,7 @@ const App: React.FC = () => {
                 )}
               </div>
               <div className="flex-1 h-full">
-                <ImageUploader 
+                <ImageUploader
                   currentImage={originalImage}
                   onImageUpload={setOriginalImage}
                   onClear={() => {
@@ -468,14 +519,14 @@ const App: React.FC = () => {
 
             {/* Output Section */}
             <div className="flex flex-col gap-4 h-full">
-               <div className="flex items-center justify-between mb-1 px-1">
+              <div className="flex items-center justify-between mb-1 px-1">
                 <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{t.aiResult}</h3>
                 {resultImage && (
                   <span className="text-xs text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">{t.generationComplete}</span>
                 )}
               </div>
               <div className="flex-1 h-full">
-                <ResultDisplay 
+                <ResultDisplay
                   resultImage={resultImage}
                   originalImage={originalImage}
                   isLoading={isGenerating}
@@ -492,84 +543,84 @@ const App: React.FC = () => {
         {/* BOTTOM REFERENCE BAR (Only visible in Reference Mode) */}
         {appMode === AppMode.REFERENCE_MODE && (
           <div className="fixed bottom-0 left-0 right-0 lg:right-96 h-44 bg-dark-surface/95 backdrop-blur-xl border-t border-dark-border z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-             <div className="flex flex-col h-full p-4">
-               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-                  <Sparkles size={12} className="text-purple-400" /> {t.selectReferenceScene}
-               </h3>
-               <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-2 h-full items-center">
-                 {REFERENCE_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => setSelectedReference(preset)}
-                      className={`
+            <div className="flex flex-col h-full p-4">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+                <Sparkles size={12} className="text-purple-400" /> {t.selectReferenceScene}
+              </h3>
+              <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-2 h-full items-center">
+                {REFERENCE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => setSelectedReference(preset)}
+                    className={`
                         relative flex-shrink-0 w-32 h-28 group rounded-xl overflow-hidden border transition-all duration-200
-                        ${selectedReference?.id === preset.id 
-                          ? 'border-purple-500 ring-2 ring-purple-500 shadow-lg shadow-purple-500/20 scale-105' 
-                          : 'border-dark-border hover:border-slate-500 hover:scale-105'
-                        }
+                        ${selectedReference?.id === preset.id
+                        ? 'border-purple-500 ring-2 ring-purple-500 shadow-lg shadow-purple-500/20 scale-105'
+                        : 'border-dark-border hover:border-slate-500 hover:scale-105'
+                      }
                       `}
-                    >
-                       <div className="absolute inset-0">
-                         <img 
-                          src={preset.imageUrl} 
-                          alt={preset.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            // 如果图片加载失败，显示占位符
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            const placeholder = target.parentElement?.querySelector('.image-placeholder') as HTMLElement;
-                            if (placeholder) {
-                              placeholder.style.display = 'flex';
-                            }
-                          }}
-                         />
-                         {/* 占位符 - 图片加载失败时显示 */}
-                         <div 
-                          className="image-placeholder hidden w-full h-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 items-center justify-center"
-                          style={{ display: 'none' }}
-                         >
-                           <div className="text-center">
-                             <svg className="w-8 h-8 mx-auto mb-1 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                             </svg>
-                             <p className="text-[8px] text-purple-300 font-medium">{language === 'zh' ? (preset.name_zh || preset.name) : preset.name}</p>
-                           </div>
-                         </div>
-                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                       </div>
-                       
-                       <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
-                         <p className={`text-[10px] font-bold truncate ${selectedReference?.id === preset.id ? 'text-white' : 'text-slate-300'}`}>
-                           {language === 'zh' ? (preset.name_zh || preset.name) : preset.name}
-                         </p>
-                       </div>
-
-                       {selectedReference?.id === preset.id && (
-                        <div className="absolute top-1 right-1 bg-purple-500 text-white rounded-full p-0.5">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                  >
+                    <div className="absolute inset-0">
+                      <img
+                        src={preset.imageUrl}
+                        alt={preset.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // 如果图片加载失败，显示占位符
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const placeholder = target.parentElement?.querySelector('.image-placeholder') as HTMLElement;
+                          if (placeholder) {
+                            placeholder.style.display = 'flex';
+                          }
+                        }}
+                      />
+                      {/* 占位符 - 图片加载失败时显示 */}
+                      <div
+                        className="image-placeholder hidden w-full h-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 items-center justify-center"
+                        style={{ display: 'none' }}
+                      >
+                        <div className="text-center">
+                          <svg className="w-8 h-8 mx-auto mb-1 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p className="text-[8px] text-purple-300 font-medium">{language === 'zh' ? (preset.name_zh || preset.name) : preset.name}</p>
                         </div>
-                       )}
-                    </button>
-                 ))}
-               </div>
-             </div>
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                    </div>
+
+                    <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
+                      <p className={`text-[10px] font-bold truncate ${selectedReference?.id === preset.id ? 'text-white' : 'text-slate-300'}`}>
+                        {language === 'zh' ? (preset.name_zh || preset.name) : preset.name}
+                      </p>
+                    </div>
+
+                    {selectedReference?.id === preset.id && (
+                      <div className="absolute top-1 right-1 bg-purple-500 text-white rounded-full p-0.5">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </main>
 
       {/* Sidebar Controls */}
-      <Sidebar 
+      <Sidebar
         appMode={appMode}
         onBack={() => setAppMode(AppMode.LANDING)}
         language={language}
-        
+
         // Style Mode Props
         selectedMode={selectedStyleMode}
         onSelectMode={handleModeSwitch}
         selectedStyleId={selectedStyle?.id}
         onSelectStyle={setSelectedStyle}
-        
+
         // Reference Mode Props
         selectedReferenceId={selectedReference?.id}
         onSelectReference={setSelectedReference}
