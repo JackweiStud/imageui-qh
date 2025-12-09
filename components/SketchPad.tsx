@@ -23,23 +23,27 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
   const t = TRANSLATIONS[language];
 
+  /* New State for Undo */
+  const [history, setHistory] = useState<Array<{ main: ImageData, mask: ImageData | null }>>([]);
+  const [historyStep, setHistoryStep] = useState(-1);
+
   // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     const maskCanvas = maskCanvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
     const setupCanvas = () => {
       // Set canvas size to window size for fullscreen feel, or fixed container
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
-      
+
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      
+
       // If background image exists, draw it
       if (backgroundImage) {
         const img = new Image();
@@ -51,18 +55,23 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
           const x = (canvas.width / 2) - (img.width / 2) * scale;
           const y = (canvas.height / 2) - (img.height / 2) * scale;
           ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+          // Save initial state after image loads
+          saveHistory();
         };
       } else {
         // White background for pure sketch
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Save initial state
+        saveHistory();
       }
 
       // 如果是 masking 模式，初始化遮罩 Canvas
       if (mode === 'masking' && maskCanvas) {
         maskCanvas.width = canvas.width;
         maskCanvas.height = canvas.height;
-        const maskCtx = maskCanvas.getContext('2d');
+        const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
         if (maskCtx) {
           // 遮罩初始化为全黑（表示不修改）
           maskCtx.fillStyle = '#000000';
@@ -80,17 +89,65 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
     return () => window.removeEventListener('resize', setupCanvas);
   }, [backgroundImage, mode]);
 
+  const saveHistory = () => {
+    const canvas = canvasRef.current;
+    const maskCanvas = maskCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const mainData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let maskData = null;
+
+    if (mode === 'masking' && maskCanvas) {
+      const maskCtx = maskCanvas.getContext('2d');
+      if (maskCtx) {
+        maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+      }
+    }
+
+    // If we are effectively "rewriting" history by drawing after undoing, truncate future history
+    const newHistory = history.slice(0, historyStep + 1);
+
+    newHistory.push({ main: mainData, mask: maskData });
+    setHistory(newHistory);
+    setHistoryStep(newHistory.length - 1);
+  };
+
+  const undo = () => {
+    if (historyStep > 0) {
+      const newStep = historyStep - 1;
+      const rectoredState = history[newStep];
+
+      const canvas = canvasRef.current;
+      const maskCanvas = maskCanvasRef.current;
+
+      if (canvas && rectoredState.main) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.putImageData(rectoredState.main, 0, 0);
+      }
+
+      if (mode === 'masking' && maskCanvas && rectoredState.mask) {
+        const maskCtx = maskCanvas.getContext('2d');
+        if (maskCtx) maskCtx.putImageData(rectoredState.mask, 0, 0);
+      }
+
+      setHistoryStep(newStep);
+    }
+  };
+
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDrawing(true);
     const canvas = canvasRef.current;
     const maskCanvas = maskCanvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const { x, y } = getCoordinates(e, canvas);
-    
+
     // 在主 Canvas 上绘制（用于可视化反馈）
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -114,12 +171,12 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
     const canvas = canvasRef.current;
     const maskCanvas = maskCanvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const { x, y } = getCoordinates(e, canvas);
-    
+
     // 在主 Canvas 上绘制
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -135,7 +192,10 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
   };
 
   const stopDrawing = () => {
-    setIsDrawing(false);
+    if (isDrawing) {
+      setIsDrawing(false);
+      saveHistory();
+    }
   };
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
@@ -159,7 +219,7 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
   const handleSave = () => {
     if (canvasRef.current) {
       const mainImage = canvasRef.current.toDataURL('image/jpeg', 0.8);
-      
+
       // 如果是 masking 模式，同时导出遮罩图
       if (mode === 'masking' && maskCanvasRef.current) {
         const maskImage = maskCanvasRef.current.toDataURL('image/jpeg', 0.9);
@@ -170,7 +230,7 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
     }
   };
 
-  const colors = mode === 'masking' 
+  const colors = mode === 'masking'
     ? ['rgba(255, 0, 0, 0.5)'] // Masking 模式只提供半透明红色
     : ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#000000', '#ffffff'];
 
@@ -205,32 +265,32 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
 
       {/* Controls */}
       <div className="w-full max-w-4xl mt-4 p-4 bg-dark-surface rounded-xl border border-slate-700 flex flex-wrap items-center justify-between gap-4">
-        
+
         <div className="flex items-center gap-4">
           {/* Tools */}
           <div className="flex gap-2 p-1 bg-dark-bg rounded-lg border border-slate-700">
-             <button 
-               onClick={() => setTool('pen')}
-               className={`p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
-             >
-               <PenTool size={18} />
-             </button>
-             <button 
-               onClick={() => setTool('eraser')}
-               className={`p-2 rounded-md transition-colors ${tool === 'eraser' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
-             >
-               <Eraser size={18} />
-             </button>
+            <button
+              onClick={() => setTool('pen')}
+              className={`p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
+            >
+              <PenTool size={18} />
+            </button>
+            <button
+              onClick={() => setTool('eraser')}
+              className={`p-2 rounded-md transition-colors ${tool === 'eraser' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
+            >
+              <Eraser size={18} />
+            </button>
           </div>
 
           {/* Line Width */}
           <div className="flex items-center gap-2 px-2">
             <div className={`w-2 h-2 rounded-full bg-current ${tool === 'pen' ? 'text-white' : 'text-slate-500'}`}></div>
-            <input 
-              type="range" 
-              min="1" 
-              max="20" 
-              value={lineWidth} 
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={lineWidth}
               onChange={(e) => setLineWidth(parseInt(e.target.value))}
               className="w-24 accent-brand-500"
             />
@@ -242,46 +302,43 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
         {mode === 'drawing' && (
           <div className="flex gap-2">
             {colors.map(c => (
-               <button
-                 key={c}
-                 onClick={() => {
-                   setColor(c);
-                   setTool('pen');
-                 }}
-                 className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c && tool === 'pen' ? 'border-white scale-110' : 'border-transparent'}`}
-                 style={{ backgroundColor: c }}
-               />
+              <button
+                key={c}
+                onClick={() => {
+                  setColor(c);
+                  setTool('pen');
+                }}
+                className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c && tool === 'pen' ? 'border-white scale-110' : 'border-transparent'}`}
+                style={{ backgroundColor: c }}
+              />
             ))}
           </div>
         )}
 
         {/* Actions */}
         <div className="flex gap-2">
-           <Button variant="secondary" onClick={() => {
-             // Simple clear by re-loading background
-             const canvas = canvasRef.current;
-             if(canvas && backgroundImage) {
-                // Logic to clear would ideally need to redraw background. 
-                // For simplicity, we just clear rect and let user redraw or re-open.
-                // A better way is to trigger the useEffect logic again or a clear function.
-                // Here we just clear to white or let them use eraser.
-             }
-           }} icon={<Undo size={16} />}>
-             {t.undo}
-           </Button>
-           <Button variant="primary" onClick={handleSave} icon={<Check size={16} />}>
-             {t.saveSketch}
-           </Button>
+          <Button
+            variant="secondary"
+            onClick={undo}
+            disabled={historyStep <= 0}
+            className={historyStep <= 0 ? "opacity-50 cursor-not-allowed" : ""}
+            icon={<Undo size={16} />}
+          >
+            {t.undo}
+          </Button>
+          <Button variant="primary" onClick={handleSave} icon={<Check size={16} />}>
+            {t.saveSketch}
+          </Button>
         </div>
 
       </div>
       <p className="text-slate-400 text-xs mt-2">
-        {mode === 'masking' 
+        {mode === 'masking'
           ? (language === 'zh' ? '涂抹需要修改的区域（红色部分将被AI重绘）' : 'Paint the areas you want to modify (red areas will be repainted by AI)')
           : t.sketchInstructions
         }
       </p>
-      
+
       {/* 隐藏的遮罩 Canvas，仅在 masking 模式使用 */}
       {mode === 'masking' && (
         <canvas ref={maskCanvasRef} style={{ display: 'none' }} />
