@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<Session | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+    const [authError, setAuthError] = useState<string | null>(null)
     const [credits, setCredits] = useState<number>(0)
     const supabase = createClient()
 
@@ -63,6 +64,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         )
 
         return () => subscription.unsubscribe()
+    }, [])
+
+    // Check for Auth Errors in URL (e.g. from OAuth callback)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        const error = params.get('error')
+        const errorDescription = params.get('error_description')
+        if (error || errorDescription) {
+            setAuthError(errorDescription || error)
+            setIsAuthModalOpen(true)
+            // Clean URL
+            window.history.replaceState({}, '', window.location.pathname)
+        }
+    }, [])
+
+    // Check Env Vars
+    useEffect(() => {
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            console.error('Missing Supabase Environment Variables!')
+            setAuthError('Configuration Error: Missing Supabase Keys')
+        }
     }, [])
 
     const signInWithGoogle = async () => {
@@ -108,7 +130,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         }}>
             {children}
-            <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => {
+                    closeAuthModal()
+                    setAuthError(null)
+                }}
+                initialError={authError}
+            />
         </AuthContext.Provider>
     )
 }

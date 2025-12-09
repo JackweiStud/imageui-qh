@@ -35,6 +35,17 @@ const App: React.FC = () => {
   const [appMode, setAppMode] = useState<AppMode>(AppMode.LANDING);
   const [language, setLanguage] = useState<Language>('en');
 
+  // Handle global errors (e.g. from Auth callback)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorMsg = params.get('error_description') || params.get('error');
+    if (errorMsg) {
+      setError(decodeURIComponent(errorMsg));
+      // Clean up the URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     const saved = loadLanguage();
     if (saved) {
@@ -443,9 +454,17 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             {user ? (
               <div className="flex items-center gap-3 animate-in fade-in duration-300">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4F46F] to-emerald-500 flex items-center justify-center text-black font-bold text-xs shadow-md">
-                  {user.email?.[0].toUpperCase() || 'U'}
-                </div>
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt="Avatar"
+                    className="w-8 h-8 rounded-full border border-white/10 shadow-md object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4F46F] to-emerald-500 flex items-center justify-center text-black font-bold text-xs shadow-md">
+                    {user.email?.[0].toUpperCase() || 'U'}
+                  </div>
+                )}
                 <div className="flex flex-col">
                   <span className="text-xs font-medium text-white">{user.email}</span>
                   <span className="text-[10px] text-brand-400">{language === 'zh' ? '当前积分' : 'Balance'}: {credits}</span>

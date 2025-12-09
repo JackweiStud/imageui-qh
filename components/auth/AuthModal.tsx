@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { X, Loader2, Github, Mail } from 'lucide-react';
 import { useAuth } from './AuthProvider';
@@ -9,17 +9,29 @@ interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialView?: 'signin' | 'signup';
+    initialError?: string | null;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialView = 'signin' }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialView = 'signin', initialError = null }) => {
     const [view, setView] = useState<'signin' | 'signup' | 'email_signin' | 'email_signup'>(initialView);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(initialError);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const { signInWithGoogle, signInWithGithub } = useAuth();
     const supabase = createClient();
+
+    useEffect(() => {
+        if (initialError) setError(initialError);
+    }, [initialError]);
+
+    // Reset loading state when modal closes or opens (handles OAuth redirect case)
+    useEffect(() => {
+        if (!isOpen) {
+            setLoading(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
