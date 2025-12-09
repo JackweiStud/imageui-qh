@@ -424,12 +424,36 @@ const App: React.FC = () => {
       )}
 
       {/* Mobile/Tablet Header */}
-      <header className="lg:hidden flex items-center justify-between p-4 border-b border-dark-border bg-dark-surface/50 backdrop-blur-md sticky top-0 z-30">
+      <header className="lg:hidden flex items-center justify-between p-3 sm:p-4 border-b border-dark-border bg-dark-surface/50 backdrop-blur-md sticky top-0 z-30">
         <div className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg bg-brand-500`}>
             <Sparkles size={18} />
           </div>
-          <h1 className="text-lg font-bold tracking-tight text-white">StyleMorph AI</h1>
+          <h1 className="text-base sm:text-lg font-bold tracking-tight text-white">StyleMorph AI</h1>
+        </div>
+        {/* 移动端用户信息 */}
+        <div className="flex items-center gap-2">
+          {user ? (
+            <div className="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-full border border-white/10">
+              {user.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt="Avatar"
+                  className="w-6 h-6 rounded-full border border-white/10 object-cover"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#D4F46F] to-emerald-500 flex items-center justify-center text-black font-bold text-[10px]">
+                  {user.email?.[0].toUpperCase() || 'U'}
+                </div>
+              )}
+              <span className="text-[10px] sm:text-xs text-brand-400 font-medium">{credits}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-slate-400 bg-white/5 px-2 py-1 rounded-full border border-white/5">
+              <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></div>
+              <span className="text-[10px] font-medium">{language === 'zh' ? '未登录' : 'Login'}</span>
+            </div>
+          )}
         </div>
       </header>
 

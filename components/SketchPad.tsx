@@ -19,7 +19,8 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
   const maskCanvasRef = useRef<HTMLCanvasElement>(null); // 新增：遮罩层 Canvas
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState(mode === 'masking' ? 'rgba(255, 0, 0, 0.5)' : '#ef4444'); // Masking 模式默认半透明红色
-  const [lineWidth, setLineWidth] = useState(mode === 'masking' ? 20 : 4); // Masking 模式默认更粗的笔刷
+  // Masking 模式默认更粗的笔刷，移动端手指操作需要更大
+  const [lineWidth, setLineWidth] = useState(mode === 'masking' ? 30 : 6);
   const [tool, setTool] = useState<'pen' | 'eraser'>('pen');
   const t = TRANSLATIONS[language];
 
@@ -234,22 +235,32 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
     ? ['rgba(255, 0, 0, 0.5)'] // Masking 模式只提供半透明红色
     : ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#000000', '#ffffff'];
 
+  // 移动端检测
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  
+  // Masking 模式在移动端使用更大的笔刷
+  const minLineWidth = mode === 'masking' ? 10 : 1;
+  const maxLineWidth = mode === 'masking' ? 60 : 30;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-      {/* Header */}
-      <div className="w-full max-w-4xl flex items-center justify-between mb-4 text-white">
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <PenTool size={20} /> {mode === 'masking' ? (language === 'zh' ? '遮罩模式' : 'Masking Mode') : t.sketchTitle}
+    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col p-2 sm:p-4">
+      {/* Header - 移动端紧凑布局 */}
+      <div className="w-full max-w-4xl mx-auto flex items-center justify-between mb-2 sm:mb-4 text-white px-1">
+        <h2 className="text-base sm:text-xl font-bold flex items-center gap-2">
+          <PenTool size={18} className="sm:w-5 sm:h-5" /> 
+          <span className="hidden sm:inline">{mode === 'masking' ? (language === 'zh' ? '遮罩模式' : 'Masking Mode') : t.sketchTitle}</span>
+          <span className="sm:hidden">{mode === 'masking' ? (language === 'zh' ? '遮罩' : 'Mask') : (language === 'zh' ? '绘图' : 'Draw')}</span>
         </h2>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-            <X size={24} />
-          </button>
-        </div>
+        <button 
+          onClick={onClose} 
+          className="p-2 sm:p-3 hover:bg-white/10 active:bg-white/20 rounded-full transition-colors"
+        >
+          <X size={24} className="sm:w-6 sm:h-6" />
+        </button>
       </div>
 
-      {/* Canvas Area */}
-      <div className="relative w-full max-w-4xl h-[60vh] md:h-[70vh] bg-dark-surface rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
+      {/* Canvas Area - 移动端使用更多垂直空间 */}
+      <div className="relative w-full max-w-4xl mx-auto flex-1 min-h-0 bg-dark-surface rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
         <canvas
           ref={canvasRef}
           onMouseDown={startDrawing}
@@ -263,78 +274,88 @@ export const SketchPad: React.FC<SketchPadProps> = ({ onSave, onClose, language,
         />
       </div>
 
-      {/* Controls */}
-      <div className="w-full max-w-4xl mt-4 p-4 bg-dark-surface rounded-xl border border-slate-700 flex flex-wrap items-center justify-between gap-4">
-
-        <div className="flex items-center gap-4">
-          {/* Tools */}
-          <div className="flex gap-2 p-1 bg-dark-bg rounded-lg border border-slate-700">
+      {/* Controls - 移动端响应式布局 */}
+      <div className="w-full max-w-4xl mx-auto mt-2 sm:mt-4 p-3 sm:p-4 bg-dark-surface rounded-xl border border-slate-700">
+        {/* 第一行：工具和笔刷大小 */}
+        <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3">
+          {/* Tools - 增大触摸区域 */}
+          <div className="flex gap-1 p-1 bg-dark-bg rounded-lg border border-slate-700">
             <button
               onClick={() => setTool('pen')}
-              className={`p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
+              className={`p-3 sm:p-2 rounded-md transition-colors ${tool === 'pen' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white active:bg-white/10'}`}
             >
-              <PenTool size={18} />
+              <PenTool size={20} className="sm:w-[18px] sm:h-[18px]" />
             </button>
             <button
               onClick={() => setTool('eraser')}
-              className={`p-2 rounded-md transition-colors ${tool === 'eraser' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
+              className={`p-3 sm:p-2 rounded-md transition-colors ${tool === 'eraser' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white active:bg-white/10'}`}
             >
-              <Eraser size={18} />
+              <Eraser size={20} className="sm:w-[18px] sm:h-[18px]" />
             </button>
           </div>
 
-          {/* Line Width */}
-          <div className="flex items-center gap-2 px-2">
-            <div className={`w-2 h-2 rounded-full bg-current ${tool === 'pen' ? 'text-white' : 'text-slate-500'}`}></div>
+          {/* Line Width - 移动端更宽的滑块 */}
+          <div className="flex-1 flex items-center gap-2 px-2 max-w-[200px] sm:max-w-[180px]">
+            <div className={`w-2 h-2 rounded-full bg-current flex-shrink-0 ${tool === 'pen' ? 'text-white' : 'text-slate-500'}`}></div>
             <input
               type="range"
-              min="1"
-              max="20"
+              min={minLineWidth}
+              max={maxLineWidth}
               value={lineWidth}
               onChange={(e) => setLineWidth(parseInt(e.target.value))}
-              className="w-24 accent-brand-500"
+              className="flex-1 h-2 accent-brand-500 cursor-pointer"
             />
-            <div className={`w-4 h-4 rounded-full bg-current ${tool === 'pen' ? 'text-white' : 'text-slate-500'}`}></div>
+            <div className={`w-4 h-4 rounded-full bg-current flex-shrink-0 ${tool === 'pen' ? 'text-white' : 'text-slate-500'}`}></div>
           </div>
-        </div>
 
-        {/* Colors (只在 drawing 模式显示) */}
-        {mode === 'drawing' && (
-          <div className="flex gap-2">
-            {colors.map(c => (
-              <button
-                key={c}
-                onClick={() => {
-                  setColor(c);
-                  setTool('pen');
-                }}
-                className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${color === c && tool === 'pen' ? 'border-white scale-110' : 'border-transparent'}`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
+          {/* Undo - 移动端单独放在右侧 */}
+          <button
             onClick={undo}
             disabled={historyStep <= 0}
-            className={historyStep <= 0 ? "opacity-50 cursor-not-allowed" : ""}
-            icon={<Undo size={16} />}
+            className={`p-3 sm:p-2 rounded-lg border border-slate-700 transition-colors ${historyStep <= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10 active:bg-white/20'}`}
           >
-            {t.undo}
-          </Button>
-          <Button variant="primary" onClick={handleSave} icon={<Check size={16} />}>
-            {t.saveSketch}
-          </Button>
+            <Undo size={20} className="sm:w-4 sm:h-4 text-slate-300" />
+          </button>
         </div>
 
+        {/* 第二行：颜色选择器(drawing模式) + 保存按钮 */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Colors (只在 drawing 模式显示) - 移动端滚动 */}
+          {mode === 'drawing' ? (
+            <div className="flex gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
+              {colors.map(c => (
+                <button
+                  key={c}
+                  onClick={() => {
+                    setColor(c);
+                    setTool('pen');
+                  }}
+                  className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full border-2 transition-transform flex-shrink-0 active:scale-95 ${color === c && tool === 'pen' ? 'border-white scale-110' : 'border-transparent'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex-1" /> /* Masking 模式的占位 */
+          )}
+
+          {/* Save Button - 移动端更大的触摸区域 */}
+          <Button 
+            variant="primary" 
+            onClick={handleSave} 
+            icon={<Check size={18} />}
+            className="px-4 sm:px-6 py-3 sm:py-2 text-sm sm:text-base flex-shrink-0"
+          >
+            <span className="hidden sm:inline">{t.saveSketch}</span>
+            <span className="sm:hidden">{language === 'zh' ? '保存' : 'Save'}</span>
+          </Button>
+        </div>
       </div>
-      <p className="text-slate-400 text-xs mt-2">
+
+      {/* Instructions - 移动端更紧凑 */}
+      <p className="text-slate-400 text-[10px] sm:text-xs mt-2 text-center px-4 max-w-4xl mx-auto">
         {mode === 'masking'
-          ? (language === 'zh' ? '涂抹需要修改的区域（红色部分将被AI重绘）' : 'Paint the areas you want to modify (red areas will be repainted by AI)')
+          ? (language === 'zh' ? '涂抹需要修改的区域（红色部分将被AI重绘）' : 'Paint areas to modify (red = AI repaint)')
           : t.sketchInstructions
         }
       </p>
