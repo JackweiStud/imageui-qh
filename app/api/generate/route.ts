@@ -158,32 +158,43 @@ const extractBase64FromResponse = (response: any): string => {
 const fetchAndConvertToBase64 = async (url: string): Promise<string> => {
   // 1. 处理本地预设图片路径 (如 /images/presets/beach-vacation.png)
   if (url.startsWith('/images/presets/')) {
+    // 方案A: 使用 fs 直接读取本地文件 (本地开发/部分 Vercel 场景)
     try {
-      // 方案A: 使用 fs 直接读取本地文件 (最快，Vercel Serverless 支持)
       const fs = await import('fs/promises');
       const path = await import('path');
       const filePath = path.join(process.cwd(), 'public', url);
+      console.log(`[Preset] Attempting to read local file: ${filePath}`);
       const buffer = await fs.readFile(filePath);
       console.log(`[Preset] Successfully read local file: ${url}`);
       return buffer.toString('base64');
-    } catch (fsError) {
-      // 方案B (Fallback): 通过 HTTP 从自身域名获取
-      console.log(`[Preset] fs read failed, fallback to HTTP fetch for: ${url}`);
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
-      const fullUrl = `${baseUrl}${url}`;
+    } catch (fsError: any) {
+      console.log(`[Preset] fs.readFile failed: ${fsError.message}`);
+    }
 
-      try {
-        const response = await fetch(fullUrl);
-        if (!response.ok) throw new Error(`Failed to fetch: ${response.statusText}`);
-        const arrayBuffer = await response.arrayBuffer();
-        console.log(`[Preset] Successfully fetched via HTTP: ${fullUrl}`);
-        return Buffer.from(arrayBuffer).toString('base64');
-      } catch (fetchError) {
-        console.error(`[Preset] Both fs and HTTP fetch failed for: ${url}`, fetchError);
-        throw new Error('Could not load preset image');
+    // 方案B (Fallback): 通过 HTTP 从自身域名获取
+    // Vercel 提供多个 URL 环境变量，按优先级尝试
+    const baseUrl =
+      process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` :
+        process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` :
+          process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
+            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+    const fullUrl = `${baseUrl}${url}`;
+    console.log(`[Preset] Attempting HTTP fetch: ${fullUrl}`);
+
+    try {
+      const response = await fetch(fullUrl);
+      if (!response.ok) {
+        console.error(`[Preset] HTTP fetch failed with status: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch: ${response.statusText}`);
       }
+      const arrayBuffer = await response.arrayBuffer();
+      console.log(`[Preset] Successfully fetched via HTTP: ${fullUrl} (${arrayBuffer.byteLength} bytes)`);
+      return Buffer.from(arrayBuffer).toString('base64');
+    } catch (fetchError: any) {
+      console.error(`[Preset] HTTP fetch failed: ${fetchError.message}`);
+      console.error(`[Preset] Environment vars: VERCEL_URL=${process.env.VERCEL_URL}, VERCEL_PROJECT_PRODUCTION_URL=${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+      throw new Error(`Could not load preset image: ${url}`);
     }
   }
 
