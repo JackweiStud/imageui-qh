@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { TransformationMode, StylePreset, ReferencePreset, AppMode, Language, ImageConfig, AspectRatio, ImageSize, TryOnMode } from '@/lib/types';
 import { PRESETS, REFERENCE_PRESETS, MODE_ICONS, MODE_LABELS, TRANSLATIONS, ASPECT_RATIO_OPTIONS, IMAGE_SIZE_OPTIONS } from '@/lib/constants';
-import { Wand2, ArrowLeft, Upload, Edit3, Image as ImageIcon, PenTool, Settings2, Sparkles, Loader2, Shirt, User } from 'lucide-react';
+import { Wand2, ArrowLeft, Upload, Edit3, Image as ImageIcon, PenTool, Settings2, Sparkles, Loader2, Shirt, User, X } from 'lucide-react';
 import { Button } from './Button';
 import { enhancePrompt } from '@/lib/api-client';
 import { useAuth } from './auth/AuthProvider';
@@ -307,6 +307,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="absolute bottom-3 right-3 flex items-center gap-2">
                   {enhanceError && (
                     <span className="text-xs text-red-400 animate-pulse">{enhanceError}</span>
+                  )}
+                  {/* 清除按钮 - 仅当有内容时显示 */}
+                  {customPrompt.trim() && (
+                    <button
+                      onClick={() => onCustomPromptChange('')}
+                      title={language === 'zh' ? '清除内容' : 'Clear content'}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 text-xs"
+                    >
+                      <span>🗑️</span>
+                      <span>{language === 'zh' ? '清除' : 'Clear'}</span>
+                    </button>
                   )}
                   <button
                     onClick={handleMagicPrompt}
