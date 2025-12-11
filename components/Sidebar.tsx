@@ -667,7 +667,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Footer Action */}
-      <div className="p-6 border-t border-dark-border bg-dark-bg/50 backdrop-blur-sm">
+      <div className={`p-6 border-t border-dark-border bg-dark-bg/50 backdrop-blur-sm ${appMode === AppMode.REFERENCE_MODE ? 'pb-52 lg:pb-6' : ''}`}>
         <Button
           onClick={handleGenerateClick}
           disabled={!canGenerate()}
