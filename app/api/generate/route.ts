@@ -156,16 +156,45 @@ const extractBase64FromResponse = (response: any): string => {
 
 // 辅助：下载 URL 并转为 Base64 (供 Gemini 输入) - 增加 SSRF 防护
 const fetchAndConvertToBase64 = async (url: string): Promise<string> => {
+  // 1. 处理本地预设图片路径 (如 /images/presets/beach-vacation.png)
+  if (url.startsWith('/images/presets/')) {
+    try {
+      // 方案A: 使用 fs 直接读取本地文件 (最快，Vercel Serverless 支持)
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const filePath = path.join(process.cwd(), 'public', url);
+      const buffer = await fs.readFile(filePath);
+      console.log(`[Preset] Successfully read local file: ${url}`);
+      return buffer.toString('base64');
+    } catch (fsError) {
+      // 方案B (Fallback): 通过 HTTP 从自身域名获取
+      console.log(`[Preset] fs read failed, fallback to HTTP fetch for: ${url}`);
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+      const fullUrl = `${baseUrl}${url}`;
+
+      try {
+        const response = await fetch(fullUrl);
+        if (!response.ok) throw new Error(`Failed to fetch: ${response.statusText}`);
+        const arrayBuffer = await response.arrayBuffer();
+        console.log(`[Preset] Successfully fetched via HTTP: ${fullUrl}`);
+        return Buffer.from(arrayBuffer).toString('base64');
+      } catch (fetchError) {
+        console.error(`[Preset] Both fs and HTTP fetch failed for: ${url}`, fetchError);
+        throw new Error('Could not load preset image');
+      }
+    }
+  }
+
+  // 2. 处理 Supabase URL (原有逻辑 + SSRF 防护)
   try {
     const parsedUrl = new URL(url);
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
     // SSRF 防护：仅允许来自我们自己的 Supabase 项目的 URL
-    // 如果 supabaseUrl 是 "https://xyz.supabase.co"，我们检查 host 是否匹配
     if (supabaseUrl) {
       const allowedHost = new URL(supabaseUrl).host;
-      // 同时也允许 storage.googleapis.com (如果 Supabase 底层直连) 或其他受信任域名
-      // 这里严格限制为 Supabase Project Domain
       if (parsedUrl.host !== allowedHost && !parsedUrl.host.endsWith('.supabase.co')) {
         console.error(`Blocked suspicious URL: ${url}`);
         throw new Error('Security Error: Unauthorized image source');
