@@ -6,6 +6,7 @@ import { Button } from './Button';
 import { ImageCompareModal } from './ImageCompareModal';
 import { Language } from '@/lib/types';
 import { TRANSLATIONS } from '@/lib/constants';
+import { downloadImage } from '@/lib/historyService';
 
 // 自定义创可贴图标 (lucide-react 没有 Bandage)
 const BandageIcon = ({ size = 16 }: { size?: number }) => (
@@ -33,14 +34,9 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
   const t = TRANSLATIONS[language];
   const [showCompare, setShowCompare] = useState(false);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!resultImage) return;
-    const link = document.createElement('a');
-    link.href = resultImage;
-    link.download = `stylemorph-generated-${Date.now()}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await downloadImage(resultImage, `stylemorph-generated-${Date.now()}.png`);
   };
 
   if (isLoading) {

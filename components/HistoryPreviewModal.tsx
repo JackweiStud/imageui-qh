@@ -98,9 +98,9 @@ export const HistoryPreviewModal: React.FC<HistoryPreviewModalProps> = ({
   const referenceName = getReferenceName();
 
   // Handle download
-  const handleDownload = (imageData: string, type: 'original' | 'result') => {
+  const handleDownload = async (imageData: string, type: 'original' | 'result') => {
     const filename = `stylemorph-${type}-${item.id}.png`;
-    downloadImage(imageData, filename);
+    await downloadImage(imageData, filename);
   };
 
   // Handle restore and close

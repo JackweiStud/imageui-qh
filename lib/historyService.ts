@@ -175,13 +175,34 @@ const generateId = (): string => {
 
 /**
  * 下载图片
+ * 支持跨域 URL 和 Data URL
  */
-export const downloadImage = (dataUrl: string, filename?: string): void => {
-  const link = document.createElement('a');
-  link.href = dataUrl;
-  link.download = filename || `stylemorph-${Date.now()}.png`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+export const downloadImage = async (url: string, filename?: string): Promise<void> => {
+  try {
+    // 使用 fetch 获取 Blob，解决跨域/浏览器直接打开链接的问题
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename || `stylemorph-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // 释放内存
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    console.error('Download failed, falling back to direct link:', error);
+    // 降级策略：如果 fetch 失败（如严重的 CORS 问题），尝试直接打开链接
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || `stylemorph-${Date.now()}.png`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };
 
