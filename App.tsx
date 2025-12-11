@@ -24,7 +24,7 @@ import {
   deleteHistoryItem,
   clearHistory
 } from '@/lib/historyService';
-import { Sparkles, Github, Globe } from 'lucide-react';
+import { Sparkles, Github, Globe, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from './components/auth/AuthProvider';
 import { saveLanguage, loadLanguage } from '@/lib/languageStorage';
@@ -425,11 +425,16 @@ const App: React.FC = () => {
 
       {/* Mobile/Tablet Header */}
       <header className="lg:hidden flex items-center justify-between p-3 sm:p-4 border-b border-dark-border bg-dark-surface/50 backdrop-blur-md sticky top-0 z-30">
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg bg-brand-500`}>
-            <Sparkles size={18} />
-          </div>
-          <h1 className="text-base sm:text-lg font-bold tracking-tight text-white">StyleMorph AI</h1>
+        <div className="flex items-center gap-3">
+          {/* 返回按钮 - 移动端醒目显示 */}
+          <button
+            onClick={() => setAppMode(AppMode.LANDING)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white transition-all active:scale-95"
+          >
+            <ArrowLeft size={16} />
+            <span className="text-sm font-medium">{language === 'zh' ? '返回' : 'Back'}</span>
+          </button>
+          <h1 className="text-sm sm:text-base font-bold tracking-tight text-white">StyleMorph AI</h1>
         </div>
         {/* 移动端用户信息 */}
         <div className="flex items-center gap-2">
