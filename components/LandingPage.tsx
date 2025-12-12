@@ -74,7 +74,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
         </nav>
 
         {/* Hero Content - Two Column Layout */}
-        <div className="relative z-10 max-w-[1400px] mx-auto px-6 md:px-16 lg:px-24 pt-12 md:pt-20 pb-40 md:pb-56 lg:pb-72">
+        <div className="relative z-10 max-w-[1400px] mx-auto px-6 md:px-16 lg:px-24 pt-12 md:pt-20 pb-4 md:pb-6 lg:pb-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
 
             {/* Left Column: Text Content */}
@@ -168,7 +168,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
         </div>
 
         {/* ==================== IMAGE GALLERY MARQUEE ==================== */}
-        <div className="relative z-10 w-full overflow-hidden py-8 md:py-12 mb-32 md:mb-48">
+        <div className="relative z-10 w-full overflow-hidden py-4 md:py-6 mb-20 md:mb-32">
           {/* Left/Right Gradient Masks */}
           <div className="absolute left-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-r from-[#FDFBF7] to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-l from-[#FDFBF7] to-transparent z-10 pointer-events-none" />
@@ -291,7 +291,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
 
       {/* ==================== FEATURES SECTION (Dark Theme) ==================== */}
       <section className="bg-dark-bg text-white flex-1">
-        <div id="features-grid" className="w-full max-w-7xl mx-auto px-6 py-20 md:py-28">
+        <div id="features-grid" className="w-full max-w-7xl mx-auto px-6 pt-8 md:pt-12 pb-20 md:pb-28">
 
           {/* Section Header */}
           <div className="text-center mb-16">
