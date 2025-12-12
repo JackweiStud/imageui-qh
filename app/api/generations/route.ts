@@ -10,6 +10,9 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 
+// 强制动态渲染 (使用了 cookies)
+export const dynamic = 'force-dynamic';
+
 // 获取 Supabase Admin 客户端 (用于生成 Signed URL)
 const getSupabaseAdmin = () => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
