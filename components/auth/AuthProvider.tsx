@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (event, session) => {
+            async (event, session) => {
                 setSession(session)
                 setUser(session?.user ?? null)
 
@@ -59,6 +59,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Close modal on successful sign in
                 if (event === 'SIGNED_IN') {
                     setIsAuthModalOpen(false)
+
+                    // 登录成功后自动同步云端历史记录（静默执行）
+                    try {
+                        const { syncFromCloud } = await import('@/lib/historyService')
+                        const result = await syncFromCloud()
+                        if (result.added > 0) {
+                            console.log(`[Auto Sync] Synced ${result.added} records on login`)
+                        }
+                    } catch (error) {
+                        // 静默失败，不打扰用户
+                        console.warn('[Auto Sync] Failed to sync on login:', error)
+                    }
                 }
             }
         )
