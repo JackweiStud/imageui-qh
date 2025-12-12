@@ -195,6 +195,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
             className="flex gap-4 md:gap-6 animate-marquee hover:[animation-play-state:paused]"
             style={{
               width: 'max-content',
+              animationPlayState: hoveredImage ? 'paused' : 'running', // 预览时暂停动画
             }}
           >
             {/* Gallery images config: id and extension */}
