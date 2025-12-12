@@ -1,0 +1,1 @@
+New-Item -ItemType Directory -Force -Path "public\images\goodpic\optimized" | Out-Null; Get-ChildItem "public\images\goodpic\*.jpg","public\images\goodpic\*.png" | ForEach-Object { $name = $_.BaseName; npx sharp-cli -i $_.FullName -o "public\images\goodpic\optimized\$name.webp" resize 400 --withoutEnlargement }

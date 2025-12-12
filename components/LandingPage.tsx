@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { AppMode, Language } from '@/lib/types';
 import { Sparkles, Camera, ArrowRight, Edit3, Layers, Eraser, Shirt, ChevronRight, Globe } from 'lucide-react';
 import { TRANSLATIONS } from '@/lib/constants';
@@ -15,6 +15,24 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language, onToggleLanguage }) => {
   const t = TRANSLATIONS[language];
   const { user, openAuthModal, signOut, credits } = useAuth();
+  const [hoveredImage, setHoveredImage] = useState<{ id: number; ext: string } | null>(null);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 鼠标移入时立即显示，清除可能存在的隐藏定时器
+  const handleMouseEnter = useCallback((img: { id: number; ext: string }) => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setHoveredImage(img);
+  }, []);
+
+  // 鼠标移出时延迟隐藏（500ms）
+  const handleMouseLeave = useCallback(() => {
+    hideTimeoutRef.current = setTimeout(() => {
+      setHoveredImage(null);
+    }, 550);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
@@ -165,6 +183,75 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
 
           </div>
         </div>
+
+        {/* ==================== IMAGE GALLERY MARQUEE ==================== */}
+        <div className="relative z-10 w-full overflow-hidden py-8 md:py-12 mb-32 md:mb-48">
+          {/* Left/Right Gradient Masks */}
+          <div className="absolute left-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-r from-[#FDFBF7] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 md:w-40 bg-gradient-to-l from-[#FDFBF7] to-transparent z-10 pointer-events-none" />
+
+          {/* Scrolling Container */}
+          <div
+            className="flex gap-4 md:gap-6 animate-marquee hover:[animation-play-state:paused]"
+            style={{
+              width: 'max-content',
+            }}
+          >
+            {/* Gallery images config: id and extension */}
+            {(() => {
+              const images = [
+                { id: 1, ext: 'jpg' }, { id: 2, ext: 'jpg' }, { id: 3, ext: 'jpg' },
+                { id: 4, ext: 'jpg' }, { id: 5, ext: 'jpg' }, { id: 6, ext: 'png' },
+                { id: 7, ext: 'png' }, { id: 8, ext: 'png' }, { id: 9, ext: 'png' },
+                { id: 10, ext: 'png' }, { id: 11, ext: 'png' }, { id: 12, ext: 'png' },
+              ];
+
+              const renderImage = (img: { id: number; ext: string }, prefix: string) => (
+                <div
+                  key={`${prefix}-${img.id}`}
+                  className="group relative flex-shrink-0 w-48 h-48 md:w-56 md:h-56 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                  onMouseEnter={() => handleMouseEnter(img)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <img
+                    src={`/images/goodpic/optimized/${img.id}.webp`}
+                    alt={`Gallery ${img.id}`}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  {/* Hover border effect */}
+                  <div className="absolute inset-0 border-4 border-transparent group-hover:border-white/50 rounded-2xl transition-colors duration-300" />
+                </div>
+              );
+
+              return (
+                <>
+                  {/* First set of images */}
+                  {images.map((img) => renderImage(img, 'a'))}
+                  {/* Duplicate set for seamless loop */}
+                  {images.map((img) => renderImage(img, 'b'))}
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Floating Preview Modal */}
+          {hoveredImage && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+              style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+            >
+              <div className="relative max-w-4xl max-h-[80vh] rounded-2xl overflow-hidden shadow-2xl animate-fadeIn">
+                <img
+                  src={`/images/goodpic/${hoveredImage.id}.${hoveredImage.ext}`}
+                  alt={`Gallery ${hoveredImage.id} Full`}
+                  className="max-w-full max-h-[80vh] object-contain"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
 
         {/* ==================== WAVE SEPARATOR (CanvAi Multi-layer Waves) ==================== */}
         <div className="absolute bottom-0 left-0 w-full">
