@@ -106,7 +106,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
       {/* Drawer Panel */}
       <div
         className={`
-          fixed left-0 top-0 bottom-0 z-30
+          fixed left-0 top-0 bottom-0 z-40
           w-72 bg-dark-surface border-r border-dark-border
           shadow-2xl shadow-black/50
           transform transition-transform duration-300 ease-out
@@ -136,7 +136,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                 title={language === 'zh' ? '同步云端记录' : 'Sync from Cloud'}
               >
                 <Cloud size={14} className={isSyncing ? 'animate-pulse' : ''} />
-                <span className="hidden sm:inline">
+                <span>
                   {isSyncing
                     ? (language === 'zh' ? '同步中...' : 'Syncing...')
                     : (language === 'zh' ? '同步云端' : 'Sync')}
