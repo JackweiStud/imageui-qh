@@ -106,6 +106,8 @@ const deductCredits = async (supabase: any, userId: string, cost: number = 10): 
 };
 
 // 3. 保存生成记录到数据库 (用于网络错误恢复)
+// 注意：sourceImage 可能是 Signed URL (如 https://xxx.supabase.co/storage/v1/object/sign/raw_uploads/uid/xxx.jpg?token=...)
+// 我们需要提取 storage path 存储，而不是存储会过期的 Signed URL
 const saveGenerationRecord = async (
   supabase: any,
   userId: string,
@@ -113,10 +115,31 @@ const saveGenerationRecord = async (
   request: GenerateRequest
 ): Promise<void> => {
   try {
+    // 从 Signed URL 提取 storage path
+    // 格式: https://xxx.supabase.co/storage/v1/object/sign/raw_uploads/{userId}/{filename}?token=...
+    let originalStoragePath: string | null = null;
+    if (request.sourceImage) {
+      try {
+        const url = new URL(request.sourceImage);
+        // 检查是否是 Supabase Storage Signed URL
+        if (url.pathname.includes('/storage/v1/object/sign/raw_uploads/')) {
+          // 提取 path: raw_uploads/{userId}/{filename}
+          const match = url.pathname.match(/\/raw_uploads\/(.+)$/);
+          if (match) {
+            originalStoragePath = `raw_uploads/${match[1]}`;
+          }
+        }
+      } catch {
+        // 如果解析失败，保持为 null
+        console.log('[saveGenerationRecord] Failed to parse source image URL');
+      }
+    }
+
     const { error } = await supabase.from('generations').insert({
       user_id: userId,
       result_image_url: resultUrl,
-      original_image_url: request.sourceImage || null,
+      // 存储 storage path 而不是 signed URL (signed URL 会过期)
+      original_image_url: originalStoragePath,
       app_mode: request.action,
       generation_params: {
         promptModifier: request.promptModifier,

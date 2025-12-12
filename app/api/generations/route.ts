@@ -8,6 +8,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
+
+// 获取 Supabase Admin 客户端 (用于生成 Signed URL)
+const getSupabaseAdmin = () => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseServiceKey) {
+        throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing');
+    }
+
+    return createClient(supabaseUrl, supabaseServiceKey, {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+        },
+    });
+};
 
 export async function GET(request: NextRequest) {
     try {
@@ -71,10 +89,71 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        // 4. 处理 original_image_url：如果是 storage path，生成新的 Signed URL
+        const adminSupabase = getSupabaseAdmin();
+        const processedData = await Promise.all(
+            (data || []).map(async (record: any) => {
+                let originalImageUrl = record.original_image_url;
+
+                // 检查是否是 storage path (格式: raw_uploads/userId/filename.jpg)
+                // 或者是旧的已过期 Signed URL (格式: https://xxx.supabase.co/storage/v1/object/sign/raw_uploads/xxx?token=...)
+                if (originalImageUrl) {
+                    let storagePath: string | null = null;
+
+                    // Case 1: 新格式 - 直接存储的 storage path
+                    if (originalImageUrl.startsWith('raw_uploads/')) {
+                        storagePath = originalImageUrl.replace('raw_uploads/', '');
+                    }
+                    // Case 2: 旧格式 - 已过期的 Signed URL，需要提取 path
+                    else if (originalImageUrl.includes('/storage/v1/object/sign/raw_uploads/')) {
+                        try {
+                            const url = new URL(originalImageUrl);
+                            const match = url.pathname.match(/\/raw_uploads\/(.+)$/);
+                            if (match) {
+                                storagePath = match[1];
+                            }
+                        } catch {
+                            // URL 解析失败，保持为 null
+                        }
+                    }
+
+                    // 如果成功提取到 storage path，生成新的 Signed URL
+                    if (storagePath) {
+                        try {
+                            // 生成新的 Signed URL (有效期 7 天)
+                            const { data: signedData, error: signedError } = await adminSupabase.storage
+                                .from('raw_uploads')
+                                .createSignedUrl(storagePath, 60 * 60 * 24 * 7); // 7 days
+
+                            if (signedData?.signedUrl && !signedError) {
+                                originalImageUrl = signedData.signedUrl;
+                            } else {
+                                console.warn(`Failed to generate signed URL for path ${storagePath}:`, signedError);
+                                originalImageUrl = null;
+                            }
+                        } catch (err) {
+                            console.error('Error generating signed URL:', err);
+                            originalImageUrl = null;
+                        }
+                    } else if (originalImageUrl.includes('supabase.co/storage')) {
+                        // 如果是 Supabase URL 但无法解析 path，说明格式异常，返回 null
+                        console.warn(`Could not parse storage path from: ${originalImageUrl}`);
+                        originalImageUrl = null;
+                    }
+                    // 其他情况（如外部 URL 或 null）保持不变
+                }
+
+                return {
+                    ...record,
+                    original_image_url: originalImageUrl,
+                };
+            })
+        );
+
         return NextResponse.json({
             success: true,
-            data: data || [],
-            count: data?.length || 0,
+            data: processedData,
+            count: processedData.length,
         });
     } catch (error) {
         console.error('Generations API Error:', error);
