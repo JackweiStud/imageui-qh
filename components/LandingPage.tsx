@@ -212,6 +212,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                   className="group relative flex-shrink-0 w-48 h-48 md:w-56 md:h-56 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
                   onMouseEnter={() => handleMouseEnter(img)}
                   onMouseLeave={handleMouseLeave}
+                  onClick={() => setHoveredImage(hoveredImage?.id === img.id ? null : img)} // 移动端点击切换
                 >
                   <img
                     src={`/images/goodpic/optimized/${img.id}.webp`}
@@ -238,14 +239,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
           {/* Floating Preview Modal */}
           {hoveredImage && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+              className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
               style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+              onClick={() => setHoveredImage(null)} // 点击背景关闭
             >
-              <div className="relative max-w-4xl max-h-[80vh] rounded-2xl overflow-hidden shadow-2xl animate-fadeIn">
+              <div
+                className="relative max-w-4xl max-h-[80vh] rounded-2xl overflow-hidden shadow-2xl animate-fadeIn p-2 md:p-4"
+                onClick={(e) => e.stopPropagation()} // 防止点击图片时关闭
+              >
                 <img
                   src={`/images/goodpic/${hoveredImage.id}.${hoveredImage.ext}`}
                   alt={`Gallery ${hoveredImage.id} Full`}
-                  className="max-w-full max-h-[80vh] object-contain"
+                  className="max-w-full max-h-[80vh] object-contain rounded-xl"
                 />
               </div>
             </div>
