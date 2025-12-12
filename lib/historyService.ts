@@ -183,14 +183,14 @@ export const downloadImage = async (url: string, filename?: string): Promise<voi
     const response = await fetch(url);
     const blob = await response.blob();
     const blobUrl = window.URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = blobUrl;
     link.download = filename || `stylemorph-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     // 释放内存
     window.URL.revokeObjectURL(blobUrl);
   } catch (error) {
@@ -204,5 +204,67 @@ export const downloadImage = async (url: string, filename?: string): Promise<voi
     link.click();
     document.body.removeChild(link);
   }
+};
+
+/**
+ * 从云端同步生成记录
+ * 用于跨设备/清缓存后恢复历史
+ */
+export const syncFromCloud = async (): Promise<{ added: number; total: number }> => {
+  try {
+    // 1. 获取云端记录
+    const response = await fetch('/api/generations?limit=50');
+    if (!response.ok) {
+      throw new Error('Failed to fetch cloud generations');
+    }
+    const { data: cloudRecords } = await response.json();
+
+    if (!cloudRecords || cloudRecords.length === 0) {
+      return { added: 0, total: 0 };
+    }
+
+    // 2. 获取本地记录
+    const localItems = await getHistory();
+    const localUrls = new Set(localItems.map(item => item.resultImage));
+
+    // 3. 找出需要添加的记录（去重）
+    let addedCount = 0;
+    for (const record of cloudRecords) {
+      if (!localUrls.has(record.result_image_url)) {
+        // 转换云端格式为本地格式
+        const historyItem: Omit<HistoryItem, 'id' | 'timestamp'> = {
+          originalImage: record.original_image_url || null,
+          resultImage: record.result_image_url,
+          appMode: mapAppModeFromAction(record.app_mode),
+          customPrompt: record.generation_params?.customPrompt,
+          imageConfig: record.generation_params?.imageConfig,
+        };
+
+        await saveHistory(historyItem);
+        addedCount++;
+      }
+    }
+
+    console.log(`[Cloud Sync] Added ${addedCount} new records from cloud`);
+    return { added: addedCount, total: cloudRecords.length };
+  } catch (error) {
+    console.error('Cloud sync failed:', error);
+    throw error;
+  }
+};
+
+// 映射 action 到 AppMode
+import { AppMode } from './types';
+
+const mapAppModeFromAction = (action: string): AppMode => {
+  const mapping: Record<string, AppMode> = {
+    'styleTransform': AppMode.STYLE_MODE,
+    'referenceTransform': AppMode.REFERENCE_MODE,
+    'freeStyle': AppMode.FREE_MODE,
+    'customSwap': AppMode.CUSTOM_REF_MODE,
+    'inpainting': AppMode.INPAINTING_MODE,
+    'virtualTryOn': AppMode.VIRTUAL_TRY_ON,
+  };
+  return mapping[action] || AppMode.FREE_MODE;
 };
 

@@ -105,6 +105,37 @@ const deductCredits = async (supabase: any, userId: string, cost: number = 10): 
   }
 };
 
+// 3. 保存生成记录到数据库 (用于网络错误恢复)
+const saveGenerationRecord = async (
+  supabase: any,
+  userId: string,
+  resultUrl: string,
+  request: GenerateRequest
+): Promise<void> => {
+  try {
+    const { error } = await supabase.from('generations').insert({
+      user_id: userId,
+      result_image_url: resultUrl,
+      original_image_url: request.sourceImage || null,
+      app_mode: request.action,
+      generation_params: {
+        promptModifier: request.promptModifier,
+        customPrompt: request.customPrompt,
+        referenceImageUrl: request.referenceImageUrl,
+        imageConfig: request.imageConfig,
+        tryOnMode: request.tryOnMode,
+      },
+    });
+
+    if (error) {
+      // 记录失败不影响主流程，只打日志
+      console.error('Failed to save generation record:', error);
+    }
+  } catch (err) {
+    console.error('Error saving generation record:', err);
+  }
+};
+
 // 创建带错误码的响应
 const createErrorResponse = (code: string, message?: string): GenerateResponse => ({
   success: false,
@@ -710,7 +741,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Invalid action'));
     }
 
-    // 3. 生成成功，扣除积分
+    // 3. 保存生成记录到数据库 (用于恢复)
+    await saveGenerationRecord(adminSupabase, user.id, result, body);
+
+    // 4. 生成成功，扣除积分
     await deductCredits(adminSupabase, user.id, 10);
 
     return NextResponse.json({ success: true, data: result } as GenerateResponse);

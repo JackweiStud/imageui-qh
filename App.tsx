@@ -16,13 +16,15 @@ import {
   generateFreeStyleTransformation,
   generateCustomSwapTransformation,
   generateInpaintingTransformation,
-  generateVirtualTryOnTransformation
+  generateVirtualTryOnTransformation,
+  fetchRecentGeneration
 } from '@/lib/api-client';
 import {
   getHistory,
   saveHistory,
   deleteHistoryItem,
-  clearHistory
+  clearHistory,
+  syncFromCloud
 } from '@/lib/historyService';
 import { Sparkles, Github, Globe, ArrowLeft } from 'lucide-react';
 
@@ -56,6 +58,11 @@ const App: React.FC = () => {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Recovery state (for network error recovery)
+  const [isRecoverable, setIsRecoverable] = useState(false);
+  const [recoveryTimestamp, setRecoveryTimestamp] = useState<number | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // SketchPad State
   const [showSketchPad, setShowSketchPad] = useState(false);
@@ -93,6 +100,7 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const t = TRANSLATIONS[language];
 
@@ -132,9 +140,15 @@ const App: React.FC = () => {
   const handleGenerate = async () => {
     // Basic validation moved inside logic to support Free Mode without image
 
+    // 性能日志：记录开始时间
+    const startTime = Date.now();
+    console.log(`[Performance] Generation started at ${new Date(startTime).toISOString()}`);
+
     setIsGenerating(true);
     setError(null);
     setResultImage(null);
+    setIsRecoverable(false);
+    setRecoveryTimestamp(null);
 
     try {
       let result: string;
@@ -187,6 +201,12 @@ const App: React.FC = () => {
         throw new Error("Invalid Mode");
       }
 
+      // 性能日志：记录成功完成时间
+      const endTime = Date.now();
+      const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
+      console.log(`[Performance] Generation completed successfully in ${elapsedSeconds}s`);
+      console.log(`[Performance] Mode: ${appMode}, Start: ${new Date(startTime).toISOString()}, End: ${new Date(endTime).toISOString()}`);
+
       setResultImage(result);
 
       // 保存到历史记录
@@ -212,13 +232,68 @@ const App: React.FC = () => {
         setHistory(updatedHistory);
       }
     } catch (err: any) {
+      // 性能日志：记录失败时间
+      const endTime = Date.now();
+      const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(1);
+      console.log(`[Performance] Generation failed after ${elapsedSeconds}s - Error: ${err.name || err.message}`);
+
       console.error(err);
-      // 根据错误码映射友好文案
-      const errorCode = err.name || 'UNKNOWN';
-      const messages = ERROR_MESSAGES[errorCode] || ERROR_MESSAGES.UNKNOWN;
-      setError(messages[language]);
+
+      // 检查是否为可恢复错误
+      if (err.name === 'RECOVERABLE_ERROR') {
+        setIsRecoverable(true);
+        setRecoveryTimestamp(err.requestStartTime || startTime);
+        setError(language === 'zh'
+          ? '网络错误，图片可能已生成。点击下方按钮重新获取。'
+          : 'Network error. Image may have been generated. Click button below to retry.');
+      } else {
+        // 根据错误码映射友好文案
+        const errorCode = err.name || 'UNKNOWN';
+        const messages = ERROR_MESSAGES[errorCode] || ERROR_MESSAGES.UNKNOWN;
+        setError(messages[language]);
+      }
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // 手动重新获取图片 (网络错误后)
+  const handleRetryFetch = async () => {
+    if (!recoveryTimestamp) return;
+
+    setIsRetrying(true);
+    try {
+      const recovered = await fetchRecentGeneration(recoveryTimestamp);
+      if (recovered) {
+        console.log('[Recovery] Manual retry successful');
+        setResultImage(recovered);
+        setError(null);
+        setIsRecoverable(false);
+        setRecoveryTimestamp(null);
+
+        // 保存到历史记录
+        await saveHistory({
+          originalImage,
+          resultImage: recovered,
+          appMode,
+          selectedStyleMode,
+          selectedStyleId: selectedStyle?.id,
+          selectedReferenceId: selectedReference?.id,
+          customPrompt: appMode === AppMode.FREE_MODE ? customPrompt : undefined,
+          imageConfig: appMode === AppMode.FREE_MODE ? imageConfig : undefined,
+        });
+        const updatedHistory = await getHistory();
+        setHistory(updatedHistory);
+      } else {
+        setError(language === 'zh'
+          ? '未找到生成结果，请重新生成。'
+          : 'No result found. Please try generating again.');
+        setIsRecoverable(false);
+      }
+    } catch (e) {
+      console.error('[Recovery] Manual retry failed:', e);
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -311,6 +386,23 @@ const App: React.FC = () => {
     setHistory([]);
   };
 
+  // 云端同步历史记录
+  const handleCloudSync = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await syncFromCloud();
+      if (result.added > 0) {
+        const updatedHistory = await getHistory();
+        setHistory(updatedHistory);
+        console.log(`[Cloud Sync] Synced ${result.added} new records`);
+      }
+    } catch (error) {
+      console.error('[Cloud Sync] Failed:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleHistoryRestore = (item: HistoryItem) => {
     // 恢复模式
     setAppMode(item.appMode);
@@ -400,6 +492,8 @@ const App: React.FC = () => {
         onDeleteItem={handleHistoryDelete}
         onClearAll={handleHistoryClear}
         language={language}
+        onSyncCloud={handleCloudSync}
+        isSyncing={isSyncing}
       />
 
       {/* History Preview Modal */}
@@ -561,6 +655,10 @@ const App: React.FC = () => {
                   language={language}
                   onEdit={resultImage ? openSketchPadForRefine : undefined}
                   onInpaint={resultImage ? handleInpaintResult : undefined}
+                  error={error}
+                  isRecoverable={isRecoverable}
+                  isRetrying={isRetrying}
+                  onRetryFetch={handleRetryFetch}
                 />
               </div>
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, Maximize2, Columns, Sparkles } from 'lucide-react';
+import { Download, Maximize2, Columns, Sparkles, RefreshCw } from 'lucide-react';
 import { Button } from './Button';
 import { ImageCompareModal } from './ImageCompareModal';
 import { Language } from '@/lib/types';
@@ -28,9 +28,25 @@ interface ResultDisplayProps {
   language: Language;
   onEdit?: () => void;     // 对应 Free Mode (Re-imagine / 风格重绘)
   onInpaint?: () => void;  // 新增：对应 Inpainting (Fix Defects / 局部修补)
+  // Recovery Props
+  error?: string | null;
+  isRecoverable?: boolean;
+  isRetrying?: boolean;
+  onRetryFetch?: () => void;
 }
 
-export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, originalImage, isLoading, language, onEdit, onInpaint }) => {
+export const ResultDisplay: React.FC<ResultDisplayProps> = ({
+  resultImage,
+  originalImage,
+  isLoading,
+  language,
+  onEdit,
+  onInpaint,
+  error,
+  isRecoverable,
+  isRetrying,
+  onRetryFetch
+}) => {
   const t = TRANSLATIONS[language];
   const [showCompare, setShowCompare] = useState(false);
 
@@ -43,9 +59,9 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
     return (
       <div className="w-full h-full min-h-[300px] bg-dark-surface rounded-2xl border border-dark-border flex flex-col items-center justify-center p-8">
         <div className="relative w-24 h-24 mb-8">
-           <div className="absolute inset-0 border-4 border-brand-500/30 rounded-full animate-pulse"></div>
-           <div className="absolute inset-0 border-t-4 border-brand-500 rounded-full animate-spin"></div>
-           <div className="absolute inset-4 bg-brand-500/20 rounded-full blur-xl"></div>
+          <div className="absolute inset-0 border-4 border-brand-500/30 rounded-full animate-pulse"></div>
+          <div className="absolute inset-0 border-t-4 border-brand-500 rounded-full animate-spin"></div>
+          <div className="absolute inset-4 bg-brand-500/20 rounded-full blur-xl"></div>
         </div>
         <h3 className="text-xl font-bold text-white mb-2 animate-pulse">{t.generating}</h3>
         <p className="text-slate-400 text-center max-w-xs">
@@ -59,21 +75,37 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
     return (
       <div className="w-full h-full min-h-[300px] bg-dark-surface/50 rounded-2xl border border-dashed border-dark-border flex flex-col items-center justify-center text-slate-500">
         <Maximize2 className="w-12 h-12 mb-4 opacity-20" />
-        <p>{t.resultPlaceholder}</p>
+        <p className="mb-4">{t.resultPlaceholder}</p>
+
+        {/* 手动刷新按钮 - 网络错误时显示 */}
+        {error && isRecoverable && onRetryFetch && (
+          <Button
+            variant="primary"
+            onClick={onRetryFetch}
+            disabled={isRetrying}
+            icon={<RefreshCw size={16} className={isRetrying ? 'animate-spin' : ''} />}
+            className="mt-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+          >
+            {isRetrying
+              ? (language === 'zh' ? '获取中...' : 'Fetching...')
+              : (language === 'zh' ? '重新获取图片' : 'Retry Fetch Image')}
+          </Button>
+        )}
       </div>
     );
   }
 
+
   return (
     <div className="relative w-full h-full min-h-[300px] bg-dark-surface rounded-2xl border border-brand-500/50 overflow-hidden shadow-2xl shadow-brand-500/10 group">
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10 pointer-events-none"></div>
-      
-      <img 
-        src={resultImage} 
-        alt="Generated Result" 
+
+      <img
+        src={resultImage}
+        alt="Generated Result"
         className="w-full h-full object-contain bg-black/40"
       />
-      
+
       {/* Top Controls - 移动端始终显示，PC端 hover 显示 */}
       <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20 flex flex-wrap gap-1.5 sm:gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all md:transform md:translate-y-2 md:group-hover:translate-y-0">
         {/* 对比按钮 - 需要原图才显示 */}
@@ -88,7 +120,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
             <span className="sm:hidden">{language === 'zh' ? '对比' : 'Compare'}</span>
           </Button>
         )}
-        
+
         {/* 1. 局部修补 (Inpaint) - 高频需求，用醒目样式 */}
         {onInpaint && (
           <Button
@@ -102,7 +134,7 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
             <span className="sm:hidden">{language === 'zh' ? '修复' : 'Fix'}</span>
           </Button>
         )}
-        
+
         {/* 2. 整体重绘 (Refine/Free Mode) - 探索性需求 */}
         {onEdit && (
           <Button
@@ -116,9 +148,9 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({ resultImage, origi
             <span className="sm:hidden">{language === 'zh' ? '重绘' : 'Edit'}</span>
           </Button>
         )}
-        
-        <Button 
-          variant="primary" 
+
+        <Button
+          variant="primary"
           onClick={handleDownload}
           icon={<Download size={14} className="sm:w-4 sm:h-4" />}
           className="shadow-xl px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm"

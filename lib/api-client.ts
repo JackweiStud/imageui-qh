@@ -71,8 +71,59 @@ const uploadImageToSupabase = async (base64Str: string): Promise<string> => {
   return signedData.signedUrl;
 };
 
+// 查询最近的生成记录 (用于恢复)
+export const fetchRecentGeneration = async (sinceTimestamp: number): Promise<string | null> => {
+  try {
+    const response = await fetch(`/api/generations?since=${sinceTimestamp}&limit=1`);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (data.success && data.data?.length > 0) {
+      return data.data[0].result_image_url;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+// 查询云端历史记录 (用于同步)
+export const fetchCloudGenerations = async (limit: number = 50): Promise<any[]> => {
+  try {
+    const response = await fetch(`/api/generations?limit=${limit}`);
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return data.success ? data.data : [];
+  } catch {
+    return [];
+  }
+};
+
+// 延迟函数
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 尝试从云端恢复最近的生成结果
+const attemptRecovery = async (sinceTimestamp: number, maxRetries: number = 2): Promise<string | null> => {
+  for (let i = 0; i < maxRetries; i++) {
+    // 等待 5 秒让后端 DB 写入完成
+    await delay(5000);
+
+    const recovered = await fetchRecentGeneration(sinceTimestamp);
+    if (recovered) {
+      console.log(`[Recovery] Successfully recovered generation on attempt ${i + 1}`);
+      return recovered;
+    }
+    console.log(`[Recovery] Attempt ${i + 1} failed, retrying...`);
+  }
+  return null;
+};
+
 // 通用请求函数
 async function callApi(request: GenerateRequest): Promise<string> {
+  // 记录请求开始时间 (用于恢复查询)
+  const requestStartTime = Date.now();
+
   // 设置 90 秒前端超时（比后端 60 秒略长，以便接收后端可能的超时响应）
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 90000);
@@ -109,13 +160,34 @@ async function callApi(request: GenerateRequest): Promise<string> {
   } catch (error: any) {
     clearTimeout(timeoutId);
 
-    // 处理前端主动超时
-    if (error.name === 'AbortError') {
-      throw new Error('请求等待超时，生成过程可能仍在后台进行，请稍后刷新查看结果。');
+    // 检测网络相关错误 (AbortError, TypeError, 或包含 network 关键词)
+    const isNetworkError =
+      error.name === 'AbortError' ||
+      error.name === 'TypeError' ||
+      error.message?.toLowerCase().includes('network') ||
+      error.message?.toLowerCase().includes('failed to fetch');
+
+    if (isNetworkError) {
+      console.log('[Recovery] Network error detected, attempting recovery...');
+
+      // 尝试从云端恢复
+      const recovered = await attemptRecovery(requestStartTime);
+      if (recovered) {
+        return recovered;
+      }
+
+      // 恢复失败，抛出可恢复错误 (供手动刷新)
+      const recoverableError = new Error('RECOVERABLE_ERROR');
+      recoverableError.name = 'RECOVERABLE_ERROR';
+      (recoverableError as any).requestStartTime = requestStartTime;
+      (recoverableError as any).originalError = error.message;
+      throw recoverableError;
     }
+
     throw error;
   }
 }
+
 
 // Helper: 压缩图片 (前端执行，减少上传体积)
 const compressImage = async (base64Str: string, maxWidth = 1024, quality = 0.8): Promise<string> => {

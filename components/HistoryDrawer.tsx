@@ -3,7 +3,7 @@
 import React from 'react';
 import { HistoryItem, Language, AppMode } from '@/lib/types';
 import { TRANSLATIONS } from '@/lib/constants';
-import { History, X, Trash2, ChevronLeft, ChevronRight, Clock, Wand2, Edit3, Image as ImageIcon, Layers } from 'lucide-react';
+import { History, X, Trash2, ChevronLeft, ChevronRight, Clock, Wand2, Edit3, Image as ImageIcon, Layers, Cloud } from 'lucide-react';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -13,6 +13,9 @@ interface HistoryDrawerProps {
   onDeleteItem: (id: string) => void;
   onClearAll: () => void;
   language: Language;
+  // Cloud sync
+  onSyncCloud?: () => void;
+  isSyncing?: boolean;
 }
 
 export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
@@ -22,7 +25,9 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   onSelectItem,
   onDeleteItem,
   onClearAll,
-  language
+  language,
+  onSyncCloud,
+  isSyncing
 }) => {
   const t = TRANSLATIONS[language];
 
@@ -115,12 +120,36 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
             <History size={20} className="text-brand-400" />
             <h2 className="text-lg font-bold text-white">{t.historyTitle}</h2>
           </div>
-          <button
-            onClick={onToggle}
-            className="p-1.5 rounded-lg hover:bg-dark-border text-slate-400 hover:text-white transition-colors"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Cloud Sync Button */}
+            {onSyncCloud && (
+              <button
+                onClick={onSyncCloud}
+                disabled={isSyncing}
+                className={`
+                  flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium
+                  border transition-all duration-200
+                  ${isSyncing
+                    ? 'bg-brand-500/20 border-brand-500/30 text-brand-400 cursor-wait'
+                    : 'bg-dark-border/50 border-dark-border hover:border-brand-500/50 text-slate-400 hover:text-brand-400'}
+                `}
+                title={language === 'zh' ? '同步云端记录' : 'Sync from Cloud'}
+              >
+                <Cloud size={14} className={isSyncing ? 'animate-pulse' : ''} />
+                <span className="hidden sm:inline">
+                  {isSyncing
+                    ? (language === 'zh' ? '同步中...' : 'Syncing...')
+                    : (language === 'zh' ? '同步云端' : 'Sync')}
+                </span>
+              </button>
+            )}
+            <button
+              onClick={onToggle}
+              className="p-1.5 rounded-lg hover:bg-dark-border text-slate-400 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* History List */}
@@ -151,7 +180,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   />
                   {/* Gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                  
+
                   {/* Delete button */}
                   <button
                     onClick={(e) => {
