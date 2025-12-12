@@ -386,12 +386,12 @@ const FeatureCard = ({ icon, color, title, description, onClick, delay }: any) =
   };
 
   const cardHoverClasses: Record<string, string> = {
-    blue: "hover:border-blue-500/30",
-    cyan: "hover:border-cyan-500/30",
-    purple: "hover:border-purple-500/30",
-    pink: "hover:border-pink-500/30",
-    emerald: "hover:border-emerald-500/30",
-    red: "hover:border-red-500/30",
+    blue: "hover:border-blue-500/30 hover:bg-gradient-to-br hover:from-blue-500/30 hover:to-transparent",
+    cyan: "hover:border-cyan-500/30 hover:bg-gradient-to-br hover:from-cyan-500/30 hover:to-transparent",
+    purple: "hover:border-purple-500/30 hover:bg-gradient-to-br hover:from-purple-500/30 hover:to-transparent",
+    pink: "hover:border-pink-500/30 hover:bg-gradient-to-br hover:from-pink-500/30 hover:to-transparent",
+    emerald: "hover:border-emerald-500/30 hover:bg-gradient-to-br hover:from-emerald-500/30 hover:to-transparent",
+    red: "hover:border-red-500/30 hover:bg-gradient-to-br hover:from-red-500/30 hover:to-transparent",
   };
 
   return (
