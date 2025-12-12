@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import { AppMode, Language } from '@/lib/types';
 import { Sparkles, Camera, ArrowRight, Edit3, Layers, Eraser, Shirt, ChevronRight, Globe } from 'lucide-react';
 import { TRANSLATIONS } from '@/lib/constants';
@@ -15,24 +15,7 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language, onToggleLanguage }) => {
   const t = TRANSLATIONS[language];
   const { user, openAuthModal, signOut, credits } = useAuth();
-  const [hoveredImage, setHoveredImage] = useState<{ id: number; ext: string } | null>(null);
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 鼠标移入时立即显示，清除可能存在的隐藏定时器
-  const handleMouseEnter = useCallback((img: { id: number; ext: string }) => {
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-    }
-    setHoveredImage(img);
-  }, []);
-
-  // 鼠标移出时延迟隐藏（500ms）
-  const handleMouseLeave = useCallback(() => {
-    hideTimeoutRef.current = setTimeout(() => {
-      setHoveredImage(null);
-    }, 550);
-  }, []);
+  const [previewImage, setPreviewImage] = useState<{ id: number; ext: string } | null>(null);
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
@@ -195,7 +178,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
             className="flex gap-4 md:gap-6 animate-marquee hover:[animation-play-state:paused]"
             style={{
               width: 'max-content',
-              animationPlayState: hoveredImage ? 'paused' : 'running', // 预览时暂停动画
+              animationPlayState: previewImage ? 'paused' : 'running', // 预览时暂停动画
             }}
           >
             {/* Gallery images config: id and extension */}
@@ -211,9 +194,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                 <div
                   key={`${prefix}-${img.id}`}
                   className="group relative flex-shrink-0 w-48 h-48 md:w-56 md:h-56 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-                  onMouseEnter={() => handleMouseEnter(img)}
-                  onMouseLeave={handleMouseLeave}
-                  onClick={() => setHoveredImage(hoveredImage?.id === img.id ? null : img)} // 移动端点击切换
+                  onClick={() => setPreviewImage(img)}
                 >
                   <img
                     src={`/images/goodpic/optimized/${img.id}.webp`}
@@ -223,6 +204,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                   />
                   {/* Hover border effect */}
                   <div className="absolute inset-0 border-4 border-transparent group-hover:border-white/50 rounded-2xl transition-colors duration-300" />
+                  {/* Click hint */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/20">
+                    <span className="text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-full">
+                      {language === 'zh' ? '点击查看' : 'Click to view'}
+                    </span>
+                  </div>
                 </div>
               );
 
@@ -237,26 +224,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
             })()}
           </div>
 
-          {/* Floating Preview Modal */}
-          {hoveredImage && (
+          {/* Preview Modal - Click to close */}
+          {previewImage && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
-              style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
-              onClick={() => setHoveredImage(null)} // 点击背景关闭
+              className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer bg-black/80"
+              onClick={() => setPreviewImage(null)}
             >
               <div
-                className="relative max-w-4xl max-h-[80vh] rounded-2xl overflow-hidden shadow-2xl animate-fadeIn p-2 md:p-4"
-                onClick={(e) => e.stopPropagation()} // 防止点击图片时关闭
+                className="relative max-w-4xl max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl animate-fadeIn"
+                onClick={(e) => e.stopPropagation()}
               >
                 <img
-                  src={`/images/goodpic/${hoveredImage.id}.${hoveredImage.ext}`}
-                  alt={`Gallery ${hoveredImage.id} Full`}
-                  className="max-w-full max-h-[80vh] object-contain rounded-xl"
+                  src={`/images/goodpic/${previewImage.id}.${previewImage.ext}`}
+                  alt={`Gallery ${previewImage.id} Full`}
+                  className="max-w-full max-h-[85vh] object-contain"
                 />
+                {/* Close button */}
+                <button
+                  onClick={() => setPreviewImage(null)}
+                  className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                >
+                  ✕
+                </button>
               </div>
             </div>
           )}
         </div>
+
 
 
         {/* ==================== WAVE SEPARATOR (CanvAi Multi-layer Waves) ==================== */}
