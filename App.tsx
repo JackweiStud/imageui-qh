@@ -588,7 +588,7 @@ const App: React.FC = () => {
                   </div>
                 )}
                 <div className="flex flex-col">
-                  <span className="text-xs font-medium text-white">{user.email}</span>
+                  <span className="text-xs font-medium text-white">{user.email?.split('@')[0]}</span>
                   <span className="text-[10px] text-brand-400">{language === 'zh' ? '当前积分' : 'Balance'}: {credits}</span>
                 </div>
               </div>

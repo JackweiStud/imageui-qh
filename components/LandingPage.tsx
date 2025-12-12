@@ -34,7 +34,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
 
           <div className="flex items-center gap-4 md:gap-6">
             {user ? (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                {/* 用户头像 */}
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt="Avatar"
+                    className="w-9 h-9 rounded-full border-2 border-brand-500/30 shadow-md object-cover"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                    {user.email?.[0].toUpperCase() || 'U'}
+                  </div>
+                )}
                 <div className="hidden md:flex flex-col text-right">
                   <span className="text-sm font-semibold text-[#0F172A]">{user.email?.split('@')[0]}</span>
                   <span className="text-xs text-brand-600 font-medium">{credits} Credits</span>
