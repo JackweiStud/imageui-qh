@@ -18,10 +18,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
-      
+
       {/* ==================== HERO SECTION (Light Theme - CanvAi Style) ==================== */}
       <section className="relative bg-[#FDFBF7] overflow-hidden">
-        
+
         {/* Navbar - Transparent style like CanvAi */}
         <nav className="relative z-50 flex items-center justify-between px-6 py-5 md:px-16 lg:px-24">
           <div className="flex items-center gap-2.5">
@@ -46,20 +46,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => openAuthModal()}
-                className="text-sm font-semibold text-slate-600 hover:text-[#0F172A] transition-colors"
-              >
-                Sign In
-              </button>
+              <>
+                <button
+                  onClick={() => openAuthModal()}
+                  className="text-sm font-semibold text-slate-600 hover:text-[#0F172A] transition-colors"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => onSelectMode(AppMode.FREE_MODE)}
+                  className="px-5 py-2.5 rounded-full bg-[#0F172A] text-white text-sm font-bold hover:bg-slate-800 transition-all shadow-sm"
+                >
+                  Get Started
+                </button>
+              </>
             )}
-            
-            <button
-              onClick={() => onSelectMode(AppMode.FREE_MODE)}
-              className="px-5 py-2.5 rounded-full bg-[#0F172A] text-white text-sm font-bold hover:bg-slate-800 transition-all shadow-sm"
-            >
-              Get Started
-            </button>
 
             <button
               onClick={onToggleLanguage}
@@ -74,7 +75,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
         {/* Hero Content - Two Column Layout */}
         <div className="relative z-10 max-w-[1400px] mx-auto px-6 md:px-16 lg:px-24 pt-12 md:pt-20 pb-40 md:pb-56 lg:pb-72">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-            
+
             {/* Left Column: Text Content */}
             <div className="flex flex-col text-left">
               {/* Main Headline - CanvAi uses a serif-like bold font */}
@@ -85,26 +86,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                 <span className="relative inline-block text-[#009087]">
                   Ship it.
                   {/* Hand-drawn underline SVG */}
-                  <svg 
-                    className="absolute w-full h-[0.15em] -bottom-1 left-0" 
-                    viewBox="0 0 200 20" 
+                  <svg
+                    className="absolute w-full h-[0.15em] -bottom-1 left-0"
+                    viewBox="0 0 200 20"
                     preserveAspectRatio="none"
                     fill="none"
                   >
-                    <path 
-                      d="M2 15 Q 50 5, 100 12 T 198 8" 
-                      stroke="#009087" 
-                      strokeWidth="4" 
+                    <path
+                      d="M2 15 Q 50 5, 100 12 T 198 8"
+                      stroke="#009087"
+                      strokeWidth="4"
                       strokeLinecap="round"
                       fill="none"
                     />
                   </svg>
                 </span>
               </h1>
-              
+
               {/* Description */}
               <p className="text-lg md:text-xl text-slate-500 max-w-lg mb-10 leading-relaxed">
-                {language === 'en' 
+                {language === 'en'
                   ? "The infinite canvas where rough sketches become polished AI art. Compose your ideas, add a prompt, and generate stunning visuals—all in one creative workspace."
                   : "无限画布，让草图变为精美AI艺术。组合创意，添加提示词，生成惊艳视觉作品——尽在一个创意工作区。"}
               </p>
@@ -144,10 +145,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                     <span className="text-xs text-slate-400 font-medium">stylemorph.ai/dashboard</span>
                   </div>
                 </div>
-                
+
                 {/* Window Content - Demo Video */}
                 <div className="aspect-[4/3] bg-slate-900 relative overflow-hidden">
-                  <video 
+                  <video
                     src="/images/presets/demoMp4.mp4"
                     autoPlay
                     loop
@@ -157,7 +158,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
                   />
                 </div>
               </div>
-              
+
               {/* Decorative Shadow/Glow */}
               <div className="absolute -inset-4 bg-gradient-to-br from-blue-400/20 via-purple-400/10 to-pink-400/20 blur-3xl -z-10 rounded-3xl"></div>
             </div>
@@ -167,33 +168,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
 
         {/* ==================== WAVE SEPARATOR (CanvAi Multi-layer Waves) ==================== */}
         <div className="absolute bottom-0 left-0 w-full">
-          <svg 
-            className="relative block w-full h-[120px] md:h-[180px] lg:h-[240px]" 
-            viewBox="0 0 1440 320" 
+          <svg
+            className="relative block w-full h-[120px] md:h-[180px] lg:h-[240px]"
+            viewBox="0 0 1440 320"
             preserveAspectRatio="none"
             xmlns="http://www.w3.org/2000/svg"
           >
             {/* Wave Layer 1: Teal/Cyan */}
-            <path 
-              d="M0,192 C320,280 480,100 720,180 C960,260 1120,120 1440,200 L1440,320 L0,320 Z" 
+            <path
+              d="M0,192 C320,280 480,100 720,180 C960,260 1120,120 1440,200 L1440,320 L0,320 Z"
               fill="#06B6D4"
               opacity="0.9"
             />
             {/* Wave Layer 2: Yellow/Gold */}
-            <path 
-              d="M0,224 C240,140 480,280 720,200 C960,120 1200,260 1440,180 L1440,320 L0,320 Z" 
+            <path
+              d="M0,224 C240,140 480,280 720,200 C960,120 1200,260 1440,180 L1440,320 L0,320 Z"
               fill="#EAB308"
               opacity="0.9"
             />
             {/* Wave Layer 3: Pink/Rose */}
-            <path 
-              d="M0,256 C180,200 420,300 720,240 C1020,180 1260,280 1440,220 L1440,320 L0,320 Z" 
+            <path
+              d="M0,256 C180,200 420,300 720,240 C1020,180 1260,280 1440,220 L1440,320 L0,320 Z"
               fill="#EC4899"
               opacity="0.9"
             />
             {/* Wave Layer 4: Dark (connects to next section) */}
-            <path 
-              d="M0,288 C360,240 720,320 1080,260 C1260,230 1380,280 1440,260 L1440,320 L0,320 Z" 
+            <path
+              d="M0,288 C360,240 720,320 1080,260 C1260,230 1380,280 1440,260 L1440,320 L0,320 Z"
               fill="#0f172a"
             />
           </svg>
@@ -204,7 +205,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
       {/* ==================== FEATURES SECTION (Dark Theme) ==================== */}
       <section className="bg-dark-bg text-white flex-1">
         <div id="features-grid" className="w-full max-w-7xl mx-auto px-6 py-20 md:py-28">
-          
+
           {/* Section Header */}
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-brand-500/10 text-brand-400 text-sm font-semibold mb-4">
@@ -214,7 +215,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
               {language === 'en' ? 'Everything you need' : '您需要的一切'}
             </h2>
             <p className="text-slate-400 max-w-2xl mx-auto text-lg">
-              {language === 'en' 
+              {language === 'en'
                 ? 'From rough sketches to polished masterpieces, StyleMorph AI provides all the tools you need.'
                 : '从草图到精美杰作，StyleMorph AI 提供您所需的所有工具。'}
             </p>
