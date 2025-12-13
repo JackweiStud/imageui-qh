@@ -29,11 +29,12 @@ import {
 import { Sparkles, Github, Globe, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from './components/auth/AuthProvider';
+import { UserAvatarMenu } from './components/UserAvatarMenu';
 import { saveLanguage, loadLanguage } from '@/lib/languageStorage';
 
 const App: React.FC = () => {
   // -- State Management --
-  const { user, credits } = useAuth();
+  const { user, credits, signOut } = useAuth();
   const [appMode, setAppMode] = useState<AppMode>(AppMode.LANDING);
   const [language, setLanguage] = useState<Language>('en');
 
@@ -575,23 +576,13 @@ const App: React.FC = () => {
           {/* Right Side: User Info + GitHub */}
           <div className="flex items-center gap-4">
             {user ? (
-              <div className="flex items-center gap-3 animate-in fade-in duration-300">
-                {user.user_metadata?.avatar_url ? (
-                  <img
-                    src={user.user_metadata.avatar_url}
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full border border-white/10 shadow-md object-cover"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4F46F] to-emerald-500 flex items-center justify-center text-black font-bold text-xs shadow-md">
-                    {user.email?.[0].toUpperCase() || 'U'}
-                  </div>
-                )}
-                <div className="flex flex-col">
-                  <span className="text-xs font-medium text-white">{user.email?.split('@')[0]}</span>
-                  <span className="text-[10px] text-brand-400">{language === 'zh' ? '当前积分' : 'Balance'}: {credits}</span>
-                </div>
-              </div>
+              <UserAvatarMenu
+                user={user}
+                credits={credits}
+                onSignOut={signOut}
+                language={language}
+                theme="dark"
+              />
             ) : (
               <div className="flex items-center gap-2 animate-in fade-in duration-300 text-slate-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
                 <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
