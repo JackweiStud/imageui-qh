@@ -92,12 +92,15 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // 4. 处理 original_image_url：如果是 storage path，生成新的 Signed URL
+        // 4. 处理图片 URL：为过期的 Signed URL 重新生成
+        // 关键修复：同时处理 original_image_url 和 result_image_url
         const adminSupabase = getSupabaseAdmin();
         const processedData = await Promise.all(
             (data || []).map(async (record: any) => {
                 let originalImageUrl = record.original_image_url;
+                let resultImageUrl = record.result_image_url;
 
+                // ========== 处理 original_image_url (原图) ==========
                 // 检查是否是 storage path (格式: raw_uploads/userId/filename.jpg)
                 // 或者是旧的已过期 Signed URL (格式: https://xxx.supabase.co/storage/v1/object/sign/raw_uploads/xxx?token=...)
                 if (originalImageUrl) {
@@ -131,24 +134,54 @@ export async function GET(request: NextRequest) {
                             if (signedData?.signedUrl && !signedError) {
                                 originalImageUrl = signedData.signedUrl;
                             } else {
-                                console.warn(`Failed to generate signed URL for path ${storagePath}:`, signedError);
+                                console.warn(`Failed to generate signed URL for raw_uploads path ${storagePath}:`, signedError);
                                 originalImageUrl = null;
                             }
                         } catch (err) {
-                            console.error('Error generating signed URL:', err);
+                            console.error('Error generating signed URL for original:', err);
                             originalImageUrl = null;
                         }
                     } else if (originalImageUrl.includes('supabase.co/storage')) {
                         // 如果是 Supabase URL 但无法解析 path，说明格式异常，返回 null
-                        console.warn(`Could not parse storage path from: ${originalImageUrl}`);
+                        console.warn(`Could not parse storage path from original: ${originalImageUrl}`);
                         originalImageUrl = null;
                     }
                     // 其他情况（如外部 URL 或 null）保持不变
                 }
 
+                // ========== 处理 result_image_url (AI 生成图) ==========
+                // 关键：result_image_url 也是 24 小时有效的 Signed URL，需要刷新！
+                // 格式: https://xxx.supabase.co/storage/v1/object/sign/generated_results/{userId}/{timestamp}_result.jpg?token=...
+                if (resultImageUrl && resultImageUrl.includes('/storage/v1/object/sign/generated_results/')) {
+                    try {
+                        const url = new URL(resultImageUrl);
+                        // 提取 path: generated_results/{userId}/{filename}
+                        const match = url.pathname.match(/\/generated_results\/(.+)$/);
+                        if (match) {
+                            const storagePath = match[1];
+                            // 生成新的 Signed URL (有效期 7 天)
+                            const { data: signedData, error: signedError } = await adminSupabase.storage
+                                .from('generated_results')
+                                .createSignedUrl(storagePath, 60 * 60 * 24 * 7); // 7 days
+
+                            if (signedData?.signedUrl && !signedError) {
+                                resultImageUrl = signedData.signedUrl;
+                                console.log(`[Sync] Refreshed result_image_url for record ${record.id}`);
+                            } else {
+                                console.warn(`Failed to generate signed URL for generated_results path ${storagePath}:`, signedError);
+                                // 保留原 URL，即使过期也比 null 好
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error generating signed URL for result:', err);
+                        // 保留原 URL
+                    }
+                }
+
                 return {
                     ...record,
                     original_image_url: originalImageUrl,
+                    result_image_url: resultImageUrl,
                 };
             })
         );
