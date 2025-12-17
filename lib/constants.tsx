@@ -191,7 +191,12 @@ export const TRANSLATIONS = {
     landingHeroDesc: "The infinite canvas where your ideas become reality. Use AI to transform photos, sketches, and prompts into stunning visuals in seconds.",
     exploreFeatures: "Explore Features",
     chooseWorkflow: "Choose Your Workflow",
-    footerCopyright: "© 2025 StyleMorph AI. All rights reserved."
+    footerCopyright: "© 2025 StyleMorph AI. All rights reserved.",
+    // Contact Section
+    contactTitle: "Contact Us",
+    needHelpOrFeedback: "Need help or feedback?",
+    emailUs: "Email Us",
+    followUsForUpdates: "Follow us for updates"
   },
   zh: {
     backToMenu: "返回菜单",
@@ -336,7 +341,12 @@ export const TRANSLATIONS = {
     landingHeroDesc: "无限画布，创意成真。利用 AI 将照片、草图和提示词瞬间转化为惊艳的视觉作品。",
     exploreFeatures: "探索功能",
     chooseWorkflow: "选择工作流",
-    footerCopyright: "© 2025 StyleMorph AI. 保留所有权利。"
+    footerCopyright: "© 2025 StyleMorph AI. 保留所有权利。",
+    // Contact Section
+    contactTitle: "联系我们",
+    needHelpOrFeedback: "需要帮助或反馈？",
+    emailUs: "发送邮件",
+    followUsForUpdates: "关注最新动态"
   }
 };
 

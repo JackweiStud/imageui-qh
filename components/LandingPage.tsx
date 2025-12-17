@@ -357,13 +357,52 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="w-full py-10 border-t border-white/5 text-center">
-          <div className="flex items-center justify-center gap-2 mb-3 text-slate-500">
-            <Sparkles size={16} />
-            <span className="font-bold">StyleMorph AI</span>
+        {/* ==================== CONTACT & FOOTER SECTION ==================== */}
+        <footer className="w-full pt-10 pb-8 border-t border-white/5">
+          <div className="max-w-3xl mx-auto px-6">
+
+            {/* Contact Title */}
+            <h3 className="text-lg font-semibold text-center text-white mb-6">
+              {t.contactTitle}
+            </h3>
+
+            {/* Contact Links - Simple Inline Layout */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12 mb-8">
+
+              {/* Email Link */}
+              <a
+                href="mailto:customerfeedback@huaizhoutechai.com"
+                className="group flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                <span className="text-sm font-medium group-hover:underline">{t.emailUs}</span>
+              </a>
+
+              {/* X (Twitter) Link */}
+              <a
+                href="https://x.com/AiJackWison"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-2 text-slate-400 hover:text-sky-400 transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                <span className="text-sm font-medium group-hover:underline">@AiJackWison</span>
+              </a>
+            </div>
+
+            {/* Brand & Copyright */}
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="flex items-center justify-center gap-2 text-slate-500">
+                <Sparkles size={14} />
+                <span className="font-semibold text-sm">StyleMorph AI</span>
+              </div>
+              <p className="text-slate-600 text-xs">{t.footerCopyright}</p>
+            </div>
           </div>
-          <p className="text-slate-600 text-sm">{t.footerCopyright}</p>
         </footer>
       </section>
     </div>
