@@ -62,6 +62,7 @@ export interface ImageConfig {
 // 历史记录项类型
 export interface HistoryItem {
   id: string;
+  cloudId?: string; // 云端记录的 UUID，用于同步去重
   timestamp: number;
 
   // 图片数据

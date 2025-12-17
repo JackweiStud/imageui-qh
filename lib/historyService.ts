@@ -67,11 +67,12 @@ export const getHistory = async (): Promise<HistoryItem[]> => {
 /**
  * 保存新的历史记录项
  */
-export const saveHistory = async (item: Omit<HistoryItem, 'id' | 'timestamp'>): Promise<HistoryItem | null> => {
+export const saveHistory = async (item: Omit<HistoryItem, 'id' | 'timestamp'> & { cloudId?: string }): Promise<HistoryItem | null> => {
   try {
     const newItem: HistoryItem = {
       ...item,
-      id: generateId(),
+      id: item.cloudId || generateId(), // 优先使用云端 ID 作为主键
+      cloudId: item.cloudId,
       timestamp: Date.now(),
     };
 
@@ -174,6 +175,27 @@ const generateId = (): string => {
 };
 
 /**
+ * 检查本地是否已存在指定 cloudId 的记录
+ * 用于同步时去重
+ */
+export const hasCloudRecord = async (cloudId: string): Promise<boolean> => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const transaction = db.transaction([STORE_NAME], 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      // 由于我们使用 cloudId 作为 id，直接查询即可
+      const request = store.get(cloudId);
+
+      request.onsuccess = () => resolve(!!request.result);
+      request.onerror = () => resolve(false);
+    });
+  } catch {
+    return false;
+  }
+};
+
+/**
  * 下载图片
  * 支持跨域 URL 和 Data URL
  */
@@ -223,20 +245,19 @@ export const syncFromCloud = async (): Promise<{ added: number; total: number }>
       return { added: 0, total: 0 };
     }
 
-    // 2. 获取本地记录
-    const localItems = await getHistory();
-    const localUrls = new Set(localItems.map(item => item.resultImage));
-
-    // 3. 找出需要添加的记录（去重）
+    // 2. 逐条检查并添加（使用 cloudId 去重）
     let addedCount = 0;
     for (const record of cloudRecords) {
-      if (!localUrls.has(record.result_image_url)) {
+      // 使用云端 UUID 作为唯一标识进行去重
+      const exists = await hasCloudRecord(record.id);
+      if (!exists) {
         // Handle both old (original_image_url) and new (original_image_urls) formats
         const originalImages = record.original_image_urls
           || (record.original_image_url ? [record.original_image_url] : undefined);
 
-        // 转换云端格式为本地格式
-        const historyItem: Omit<HistoryItem, 'id' | 'timestamp'> = {
+        // 转换云端格式为本地格式，传入 cloudId
+        const historyItem: Omit<HistoryItem, 'id' | 'timestamp'> & { cloudId: string } = {
+          cloudId: record.id, // 使用云端 UUID
           originalImage: originalImages?.[0] || record.original_image_url || null,
           originalImages: originalImages, // Multi-image support
           resultImage: record.result_image_url,
