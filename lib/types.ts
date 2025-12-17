@@ -65,7 +65,8 @@ export interface HistoryItem {
   timestamp: number;
 
   // 图片数据
-  originalImage: string | null;
+  originalImage: string | null; // Legacy: single image (backward compat)
+  originalImages?: string[]; // Multi-image support (Free Mode)
   resultImage: string;
 
   // 当时的模式
@@ -108,6 +109,7 @@ export interface GenerateRequest {
 
   // 通用参数
   sourceImage?: string;
+  sourceImages?: string[]; // Multi-image support (Free Mode only, 1-5 images)
   promptModifier?: string;
 
   // Reference 模式

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ImageUploader } from './components/ImageUploader';
+import { MultiImageUploader } from './components/MultiImageUploader';
 import { Sidebar } from './components/Sidebar';
 import { ResultDisplay } from './components/ResultDisplay';
 import { LandingPage } from './components/LandingPage';
@@ -80,6 +81,7 @@ const App: React.FC = () => {
 
   // Free Mode State
   const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [freeImages, setFreeImages] = useState<string[]>([]); // Multi-image support (1-5 images)
   const [imageConfig, setImageConfig] = useState<ImageConfig>({
     aspectRatio: 'original',
     imageSize: '1K'
@@ -167,9 +169,9 @@ const App: React.FC = () => {
           selectedReference.promptModifier
         );
       } else if (appMode === AppMode.FREE_MODE) {
-        // Logic 3: Free Style (User Image OPTIONAL + Custom Text)
+        // Logic 3: Free Style (Multi-Image OPTIONAL + Custom Text)
         if (!customPrompt.trim()) throw new Error("Please enter a prompt.");
-        result = await generateFreeStyleTransformation(originalImage, customPrompt, imageConfig);
+        result = await generateFreeStyleTransformation(freeImages, customPrompt, imageConfig);
       } else if (appMode === AppMode.CUSTOM_REF_MODE) {
         if (!originalImage) throw new Error("Please upload an image first.");
         // Logic 4: Custom Swap (User + Custom Target + Optional Pose)
@@ -212,7 +214,8 @@ const App: React.FC = () => {
 
       // 保存到历史记录
       const savedItem = await saveHistory({
-        originalImage,
+        originalImage: freeImages.length > 0 ? freeImages[0] : originalImage, // Fallback to first freeImage or originalImage
+        originalImages: appMode === AppMode.FREE_MODE ? freeImages : undefined,
         resultImage: result,
         appMode,
         selectedStyleMode,
@@ -431,6 +434,15 @@ const App: React.FC = () => {
       if (item.imageConfig) {
         setImageConfig(item.imageConfig);
       }
+      // Restore freeImages for multi-image support
+      if (item.originalImages && item.originalImages.length > 0) {
+        setFreeImages(item.originalImages);
+      } else if (item.originalImage) {
+        // Backward compat: single image as array
+        setFreeImages([item.originalImage]);
+      } else {
+        setFreeImages([]);
+      }
     } else if (item.appMode === AppMode.CUSTOM_REF_MODE) {
       setCustomTargetImage(item.customTargetImage || null);
       setCustomPoseImage(item.customPoseImage || null);
@@ -613,20 +625,36 @@ const App: React.FC = () => {
                 <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
                   {appMode === AppMode.FREE_MODE ? t.originalImageOptional : t.originalImage}
                 </h3>
-                {originalImage && (
-                  <span className="text-xs text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded-full">{t.readyToTransform}</span>
+                {appMode === AppMode.FREE_MODE ? (
+                  freeImages.length > 0 && (
+                    <span className="text-xs text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded-full">
+                      {freeImages.length} {language === 'zh' ? '张图片' : (freeImages.length === 1 ? 'image' : 'images')}
+                    </span>
+                  )
+                ) : (
+                  originalImage && (
+                    <span className="text-xs text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded-full">{t.readyToTransform}</span>
+                  )
                 )}
               </div>
               <div className="flex-1 h-full">
-                <ImageUploader
-                  currentImage={originalImage}
-                  onImageUpload={setOriginalImage}
-                  onClear={() => {
-                    setOriginalImage(null);
-                    setResultImage(null);
-                  }}
-                  language={language}
-                />
+                {appMode === AppMode.FREE_MODE ? (
+                  <MultiImageUploader
+                    images={freeImages}
+                    onImagesChange={setFreeImages}
+                    language={language}
+                  />
+                ) : (
+                  <ImageUploader
+                    currentImage={originalImage}
+                    onImageUpload={setOriginalImage}
+                    onClear={() => {
+                      setOriginalImage(null);
+                      setResultImage(null);
+                    }}
+                    language={language}
+                  />
+                )}
               </div>
             </div>
 

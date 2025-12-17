@@ -231,9 +231,14 @@ export const syncFromCloud = async (): Promise<{ added: number; total: number }>
     let addedCount = 0;
     for (const record of cloudRecords) {
       if (!localUrls.has(record.result_image_url)) {
+        // Handle both old (original_image_url) and new (original_image_urls) formats
+        const originalImages = record.original_image_urls
+          || (record.original_image_url ? [record.original_image_url] : undefined);
+
         // 转换云端格式为本地格式
         const historyItem: Omit<HistoryItem, 'id' | 'timestamp'> = {
-          originalImage: record.original_image_url || null,
+          originalImage: originalImages?.[0] || record.original_image_url || null,
+          originalImages: originalImages, // Multi-image support
           resultImage: record.result_image_url,
           appMode: mapAppModeFromAction(record.app_mode),
           customPrompt: record.generation_params?.customPrompt,

@@ -3,9 +3,9 @@
 import React from 'react';
 import { HistoryItem, Language, AppMode, TransformationMode } from '@/lib/types';
 import { TRANSLATIONS, PRESETS, REFERENCE_PRESETS } from '@/lib/constants';
-import { 
-  X, Download, RotateCcw, Clock, Wand2, Edit3, 
-  Image as ImageIcon, Layers, Settings2, FileText 
+import {
+  X, Download, RotateCcw, Clock, Wand2, Edit3,
+  Image as ImageIcon, Layers, Settings2, FileText
 } from 'lucide-react';
 import { downloadImage } from '@/lib/historyService';
 
@@ -110,11 +110,11 @@ export const HistoryPreviewModal: React.FC<HistoryPreviewModalProps> = ({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div 
+      <div
         className="relative w-full max-w-4xl max-h-[90vh] bg-dark-surface rounded-2xl border border-dark-border shadow-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
@@ -144,28 +144,58 @@ export const HistoryPreviewModal: React.FC<HistoryPreviewModalProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
           {/* Images Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {/* Original Image */}
-            {item.originalImage && (
+            {/* Original Image(s) */}
+            {(item.originalImages && item.originalImages.length > 0) || item.originalImage ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-slate-300">{t.compareOriginal}</h3>
-                  <button
-                    onClick={() => handleDownload(item.originalImage!, 'original')}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 rounded-lg transition-colors"
-                  >
-                    <Download size={12} />
-                    {t.download}
-                  </button>
+                  <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    {t.compareOriginal}
+                    {item.originalImages && item.originalImages.length > 1 && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        {item.originalImages.length}
+                      </span>
+                    )}
+                  </h3>
+                  {(item.originalImages?.[0] || item.originalImage) && (
+                    <button
+                      onClick={() => handleDownload(item.originalImages?.[0] || item.originalImage!, 'original')}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 rounded-lg transition-colors"
+                    >
+                      <Download size={12} />
+                      {t.download}
+                    </button>
+                  )}
                 </div>
-                <div className="relative aspect-video rounded-xl overflow-hidden border border-dark-border bg-dark-bg">
-                  <img
-                    src={item.originalImage}
-                    alt="Original"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
+                {/* Multi-image grid - larger thumbnails */}
+                {item.originalImages && item.originalImages.length > 1 ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {item.originalImages.map((img, idx) => (
+                      <div
+                        key={idx}
+                        className="relative aspect-[4/3] rounded-xl overflow-hidden border border-dark-border bg-dark-bg hover:border-brand-500/50 transition-colors cursor-pointer group"
+                      >
+                        <img
+                          src={img}
+                          alt={`Original ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute bottom-2 right-2 px-2 py-1 text-xs font-bold rounded-lg bg-black/70 text-white backdrop-blur-sm">
+                          {idx + 1}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="relative aspect-video rounded-xl overflow-hidden border border-dark-border bg-dark-bg">
+                    <img
+                      src={item.originalImages?.[0] || item.originalImage!}
+                      alt="Original"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                )}
               </div>
-            )}
+            ) : null}
 
             {/* Result Image */}
             <div className="space-y-2">
@@ -260,7 +290,7 @@ export const HistoryPreviewModal: React.FC<HistoryPreviewModalProps> = ({
           >
             {t.historyClose}
           </button>
-          
+
           <button
             onClick={handleRestore}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brand-500 hover:bg-brand-600 shadow-lg shadow-brand-500/20 transition-all duration-200"

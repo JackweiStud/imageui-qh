@@ -106,7 +106,7 @@ const deductCredits = async (supabase: any, userId: string, cost: number = 10): 
 };
 
 // 3. 保存生成记录到数据库 (用于网络错误恢复)
-// 注意：sourceImage 可能是 Signed URL (如 https://xxx.supabase.co/storage/v1/object/sign/raw_uploads/uid/xxx.jpg?token=...)
+// 注意：sourceImage/sourceImages 可能是 Signed URL
 // 我们需要提取 storage path 存储，而不是存储会过期的 Signed URL
 const saveGenerationRecord = async (
   supabase: any,
@@ -115,31 +115,44 @@ const saveGenerationRecord = async (
   request: GenerateRequest
 ): Promise<void> => {
   try {
-    // 从 Signed URL 提取 storage path
-    // 格式: https://xxx.supabase.co/storage/v1/object/sign/raw_uploads/{userId}/{filename}?token=...
-    let originalStoragePath: string | null = null;
-    if (request.sourceImage) {
+    // 辅助函数：从 Signed URL 提取 storage path
+    const extractStoragePath = (url: string): string | null => {
       try {
-        const url = new URL(request.sourceImage);
-        // 检查是否是 Supabase Storage Signed URL
-        if (url.pathname.includes('/storage/v1/object/sign/raw_uploads/')) {
-          // 提取 path: raw_uploads/{userId}/{filename}
-          const match = url.pathname.match(/\/raw_uploads\/(.+)$/);
+        const parsedUrl = new URL(url);
+        if (parsedUrl.pathname.includes('/storage/v1/object/sign/raw_uploads/')) {
+          const match = parsedUrl.pathname.match(/\/raw_uploads\/(.+)$/);
           if (match) {
-            originalStoragePath = `raw_uploads/${match[1]}`;
+            return `raw_uploads/${match[1]}`;
           }
         }
       } catch {
-        // 如果解析失败，保持为 null
         console.log('[saveGenerationRecord] Failed to parse source image URL');
+      }
+      return null;
+    };
+
+    // 处理多图（sourceImages）或单图（sourceImage）
+    let originalStoragePaths: string[] = [];
+
+    if (request.sourceImages && request.sourceImages.length > 0) {
+      // Multi-image mode: extract paths from all images
+      originalStoragePaths = request.sourceImages
+        .map(url => extractStoragePath(url))
+        .filter((path): path is string => path !== null);
+    } else if (request.sourceImage) {
+      // Single image mode (backward compat)
+      const path = extractStoragePath(request.sourceImage);
+      if (path) {
+        originalStoragePaths = [path];
       }
     }
 
     const { error } = await supabase.from('generations').insert({
       user_id: userId,
       result_image_url: resultUrl,
-      // 存储 storage path 而不是 signed URL (signed URL 会过期)
-      original_image_url: originalStoragePath,
+      // 存储第一张图 (向后兼容)
+      original_image_url: originalStoragePaths.length > 0 ? originalStoragePaths[0] : null,
+      // 存储所有图片路径 (新字段，如果 DB 支持的话存入 generation_params)
       app_mode: request.action,
       generation_params: {
         promptModifier: request.promptModifier,
@@ -147,6 +160,8 @@ const saveGenerationRecord = async (
         referenceImageUrl: request.referenceImageUrl,
         imageConfig: request.imageConfig,
         tryOnMode: request.tryOnMode,
+        // 多图路径存储在 generation_params 中
+        originalImagePaths: originalStoragePaths.length > 1 ? originalStoragePaths : undefined,
       },
     });
 
@@ -414,9 +429,9 @@ async function generateReferenceTransform(
   return processAndUploadResult(response, userId);
 }
 
-// 3. 自由风格
+// 3. 自由风格 (Multi-image support: 0-5 images)
 async function generateFreeStyle(
-  sourceUrl: string | null,
+  sourceUrls: string[], // Array of 0-5 image URLs
   customPrompt: string,
   imageConfig: ImageConfig | undefined,
   userId: string
@@ -425,27 +440,59 @@ async function generateFreeStyle(
   const mimeType = 'image/jpeg';
   const config: ImageConfig = imageConfig || { aspectRatio: 'original', imageSize: '1K' };
 
-  let finalPrompt = '';
   const parts: any[] = [];
+  let finalPrompt = '';
 
-  if (sourceUrl) {
-    const imageBase64 = await fetchAndConvertToBase64(sourceUrl);
-    finalPrompt = `
-    Role: Creative AI Artist.
-    Task: Edit the provided image based on the USER PROMPT.
-    
-    USER PROMPT: "${customPrompt}"
-    
-    Guidelines:
-    1. Follow the user prompt strictly.
-    2. If changing background, keep main subject intact unless specified.
-    3. If changing person, keep background intact unless specified.
-    4. Maintain high photorealism and quality.
-    5. Output in maximum quality and resolution.
-    `;
-    parts.push({ text: finalPrompt });
-    parts.push({ inlineData: { mimeType, data: imageBase64 } });
+  if (sourceUrls.length > 0) {
+    // Fetch all images in parallel
+    const imagesBase64 = await Promise.all(
+      sourceUrls.map(url => fetchAndConvertToBase64(url))
+    );
+
+    if (sourceUrls.length === 1) {
+      // Single image mode (backward compatible)
+      finalPrompt = `
+      Role: Creative AI Artist.
+      Task: Edit the provided image based on the USER PROMPT.
+      
+      USER PROMPT: "${customPrompt}"
+      
+      Guidelines:
+      1. Follow the user prompt strictly.
+      2. If changing background, keep main subject intact unless specified.
+      3. If changing person, keep background intact unless specified.
+      4. Maintain high photorealism and quality.
+      5. Output in maximum quality and resolution.
+      `;
+      parts.push({ text: finalPrompt });
+      parts.push({ inlineData: { mimeType, data: imagesBase64[0] } });
+    } else {
+      // Multi-image mode (2-5 images as references)
+      finalPrompt = `
+      Role: Creative AI Artist with Multi-Reference Synthesis Expertise.
+      Task: Create a new image based on the USER PROMPT, using the ${sourceUrls.length} provided reference images as inspiration and guidance.
+      
+      USER PROMPT: "${customPrompt}"
+      
+      Reference Images:
+      ${imagesBase64.map((_, i) => `- Image ${i + 1}: Reference material ${i + 1}`).join('\n')}
+      
+      Guidelines:
+      1. Analyze all reference images for style, content, and composition cues.
+      2. Synthesize elements from multiple references as directed by the prompt.
+      3. If the prompt asks to combine elements, seamlessly blend them.
+      4. If the prompt asks to use one image as base and others as style reference, do so.
+      5. Maintain high photorealism and quality unless artistic style is specified.
+      6. Output in maximum quality and resolution.
+      `;
+      parts.push({ text: finalPrompt });
+      // Add all images as inline data
+      imagesBase64.forEach(base64 => {
+        parts.push({ inlineData: { mimeType, data: base64 } });
+      });
+    }
   } else {
+    // No images - pure text-to-image generation
     finalPrompt = `
     Role: Creative AI Artist.
     Task: Generate a high-quality image based on the USER PROMPT.
@@ -729,7 +776,9 @@ export async function POST(request: NextRequest) {
         if (!body.customPrompt) {
           return NextResponse.json(createErrorResponse(ERROR_CODES.UNKNOWN, 'Missing customPrompt'));
         }
-        result = await generateFreeStyle(body.sourceImage || null, body.customPrompt, body.imageConfig, user.id);
+        // Multi-image support: prioritize sourceImages array, fallback to single sourceImage
+        const sourceImagesArray = body.sourceImages || (body.sourceImage ? [body.sourceImage] : []);
+        result = await generateFreeStyle(sourceImagesArray, body.customPrompt, body.imageConfig, user.id);
         break;
 
       case 'customSwap':

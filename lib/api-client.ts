@@ -277,23 +277,29 @@ export const generateReferenceTransformation = async (
 };
 
 /**
- * 3. 自由风格创作
+ * 3. 自由风格创作 (Multi-image support: 0-5 images)
  */
 export const generateFreeStyleTransformation = async (
-  sourceImage: string | null,
+  sourceImages: string[], // Array of 0-5 base64 images
   customPrompt: string,
   imageConfig?: ImageConfig
 ): Promise<string> => {
-  let sourceUrl: string | undefined;
+  let sourceUrls: string[] = [];
 
-  if (sourceImage) {
-    const optimizedImage = await compressImage(sourceImage, 2048, 0.9);
-    sourceUrl = await uploadImageToSupabase(optimizedImage);
+  if (sourceImages.length > 0) {
+    // Compress and upload all images in parallel
+    const compressedImages = await Promise.all(
+      sourceImages.map(img => compressImage(img, 2048, 0.9))
+    );
+    sourceUrls = await Promise.all(
+      compressedImages.map(img => uploadImageToSupabase(img))
+    );
   }
 
   return callApi({
     action: 'freeStyle',
-    sourceImage: sourceUrl,
+    sourceImage: sourceUrls.length > 0 ? sourceUrls[0] : undefined, // Backward compat: first image
+    sourceImages: sourceUrls.length > 0 ? sourceUrls : undefined, // Multi-image array
     customPrompt,
     imageConfig,
   });

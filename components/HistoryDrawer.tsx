@@ -198,13 +198,24 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
                 {/* Info */}
                 <div className="p-3 space-y-2">
-                  {/* Mode & Time */}
+                  {/* Mode, Multi-image Badge & Time */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-dark-border/50">
-                      {getModeIcon(item.appMode)}
-                      <span className="text-[10px] font-medium text-slate-400">
-                        {getModeName(item.appMode)}
-                      </span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-dark-border/50">
+                        {getModeIcon(item.appMode)}
+                        <span className="text-[10px] font-medium text-slate-400">
+                          {getModeName(item.appMode)}
+                        </span>
+                      </div>
+                      {/* Multi-image badge */}
+                      {item.originalImages && item.originalImages.length > 1 && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30">
+                          <ImageIcon size={10} className="text-emerald-400" />
+                          <span className="text-[10px] font-medium text-emerald-400">
+                            {item.originalImages.length}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-slate-500">
                       <Clock size={10} />
