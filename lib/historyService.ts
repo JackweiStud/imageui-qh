@@ -251,14 +251,22 @@ export const syncFromCloud = async (): Promise<{ added: number; total: number }>
       // 使用云端 UUID 作为唯一标识进行去重
       const exists = await hasCloudRecord(record.id);
       if (!exists) {
-        // Handle both old (original_image_url) and new (original_image_urls) formats
-        const originalImages = record.original_image_urls
-          || (record.original_image_url ? [record.original_image_url] : undefined);
+        // 处理多图路径：优先从 generation_params.originalImagePaths 读取
+        // 多图路径存储在 generation_params.originalImagePaths（storage paths 或 signed URLs）
+        let originalImages: string[] | undefined;
+
+        if (record.generation_params?.originalImagePaths && record.generation_params.originalImagePaths.length > 0) {
+          // 多图模式：使用 originalImagePaths
+          originalImages = record.generation_params.originalImagePaths;
+        } else if (record.original_image_url) {
+          // 单图模式：使用 original_image_url
+          originalImages = [record.original_image_url];
+        }
 
         // 转换云端格式为本地格式，传入 cloudId
         const historyItem: Omit<HistoryItem, 'id' | 'timestamp'> & { cloudId: string } = {
           cloudId: record.id, // 使用云端 UUID
-          originalImage: originalImages?.[0] || record.original_image_url || null,
+          originalImage: originalImages?.[0] || null,
           originalImages: originalImages, // Multi-image support
           resultImage: record.result_image_url,
           appMode: mapAppModeFromAction(record.app_mode),

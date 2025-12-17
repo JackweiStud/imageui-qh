@@ -177,11 +177,70 @@ export async function GET(request: NextRequest) {
                         // 保留原 URL
                     }
                 }
+                // ========== 处理 generation_params.originalImagePaths (多图模式原图) ==========
+                let processedOriginalImagePaths: string[] | undefined;
+                const originalImagePaths = record.generation_params?.originalImagePaths;
+
+                if (originalImagePaths && Array.isArray(originalImagePaths) && originalImagePaths.length > 0) {
+                    processedOriginalImagePaths = [];
+
+                    for (const path of originalImagePaths) {
+                        let processedUrl: string | null = null;
+
+                        // 提取 storage path 并生成 Signed URL
+                        if (path.startsWith('raw_uploads/')) {
+                            const storagePath = path.replace('raw_uploads/', '');
+                            try {
+                                const { data: signedData, error: signedError } = await adminSupabase.storage
+                                    .from('raw_uploads')
+                                    .createSignedUrl(storagePath, 60 * 60 * 24 * 7); // 7 days
+
+                                if (signedData?.signedUrl && !signedError) {
+                                    processedUrl = signedData.signedUrl;
+                                }
+                            } catch (err) {
+                                console.error('Error generating signed URL for multi-image path:', err);
+                            }
+                        } else if (path.includes('/storage/v1/object/sign/raw_uploads/')) {
+                            // 已是 Signed URL，提取 path 并重新生成
+                            try {
+                                const url = new URL(path);
+                                const match = url.pathname.match(/\/raw_uploads\/(.+)$/);
+                                if (match) {
+                                    const { data: signedData, error: signedError } = await adminSupabase.storage
+                                        .from('raw_uploads')
+                                        .createSignedUrl(match[1], 60 * 60 * 24 * 7);
+
+                                    if (signedData?.signedUrl && !signedError) {
+                                        processedUrl = signedData.signedUrl;
+                                    }
+                                }
+                            } catch {
+                                // 保留原 URL
+                                processedUrl = path;
+                            }
+                        } else {
+                            // 其他 URL 保持不变
+                            processedUrl = path;
+                        }
+
+                        if (processedUrl) {
+                            processedOriginalImagePaths.push(processedUrl);
+                        }
+                    }
+
+                    console.log(`[Sync] Processed ${processedOriginalImagePaths.length} multi-image paths for record ${record.id}`);
+                }
 
                 return {
                     ...record,
                     original_image_url: originalImageUrl,
                     result_image_url: resultImageUrl,
+                    // 添加处理后的多图 URL 数组
+                    generation_params: {
+                        ...record.generation_params,
+                        originalImagePaths: processedOriginalImagePaths || record.generation_params?.originalImagePaths,
+                    },
                 };
             })
         );
