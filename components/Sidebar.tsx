@@ -106,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       openAuthModal();
       return;
     }
-    if (credits < 10) {
+    if (credits < 5) {
       setShowCreditsModal(true);
       return;
     }
@@ -694,11 +694,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </Button>
         {user && (
           <div className="mt-3 flex items-center justify-center text-xs text-slate-500 gap-2">
-            <span className={`${credits < 10 ? 'text-red-400 font-bold' : 'text-brand-400'}`}>
+            <span className={`${credits < 5 ? 'text-red-400 font-bold' : 'text-brand-400'}`}>
               Balance: {credits}
             </span>
             <span className="text-slate-600">•</span>
-            <span className="text-slate-600">Cost: 10</span>
+            <span className="text-slate-600">Cost: 5</span>
           </div>
         )}
       </div>
@@ -706,7 +706,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <CreditsModal
         isOpen={showCreditsModal}
         onClose={() => setShowCreditsModal(false)}
-        requiredCredits={10}
+        requiredCredits={5}
         currentCredits={credits}
         language={language}
       />

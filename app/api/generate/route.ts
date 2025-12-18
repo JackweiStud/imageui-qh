@@ -56,7 +56,7 @@ const getSupabaseAdmin = () => {
 };
 
 // 1. 检查积分（不扣除）
-const checkCredits = async (supabase: any, userId: string, cost: number = 10): Promise<{ success: boolean; error?: string; remainingCredits?: number }> => {
+const checkCredits = async (supabase: any, userId: string, cost: number = 5): Promise<{ success: boolean; error?: string; remainingCredits?: number }> => {
   // 强制检查，不再允许跳过
   const { data: profile, error: fetchError } = await supabase
     .from('profiles')
@@ -89,7 +89,7 @@ const checkCredits = async (supabase: any, userId: string, cost: number = 10): P
 };
 
 // 2. 扣除积分（生成成功后调用）- 使用原子 RPC 函数解决并发问题
-const deductCredits = async (supabase: any, userId: string, cost: number = 10): Promise<void> => {
+const deductCredits = async (supabase: any, userId: string, cost: number = 5): Promise<void> => {
 
   // 使用数据库 RPC 函数实现原子操作，解决并发竞态条件
   const { error } = await supabase.rpc('deduct_credits', {
@@ -742,7 +742,7 @@ export async function POST(request: NextRequest) {
 
     // 1. 检查积分 PRE-CHECK (不扣分)
     const adminSupabase = getSupabaseAdmin();
-    const creditCheck = await checkCredits(adminSupabase, user.id, 10);
+    const creditCheck = await checkCredits(adminSupabase, user.id, 5);
 
     if (!creditCheck.success) {
       return NextResponse.json(createErrorResponse(
@@ -817,7 +817,7 @@ export async function POST(request: NextRequest) {
     await saveGenerationRecord(adminSupabase, user.id, result, body);
 
     // 4. 生成成功，扣除积分
-    await deductCredits(adminSupabase, user.id, 10);
+    await deductCredits(adminSupabase, user.id, 5);
 
     return NextResponse.json({ success: true, data: result } as GenerateResponse);
   } catch (error: any) {
