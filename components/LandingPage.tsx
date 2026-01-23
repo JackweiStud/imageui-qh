@@ -252,7 +252,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectMode, language
         {/* ==================== WAVE SEPARATOR (CanvAi Multi-layer Waves) ==================== */}
         <div className="absolute bottom-0 left-0 w-full">
           <svg
-            className="relative block w-full h-[120px] md:h-[180px] lg:h-[240px]"
+            className="relative block w-full h-[160px] md:h-[200px] lg:h-[280px]"
             viewBox="0 0 1440 320"
             preserveAspectRatio="none"
             xmlns="http://www.w3.org/2000/svg"
