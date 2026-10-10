@@ -1,5 +1,6 @@
 import {
   GoogleGenAI,
+  type GenerateContentParameters,
   type GenerateContentResponse,
   type ThinkingLevel,
 } from '@google/genai';
@@ -183,4 +184,52 @@ export function extractFinalText(response: GenerateContentResponse): string {
   }
 
   throw new Error('No text generated');
+}
+
+const TRANSIENT_MESSAGE = /got status: 5\d\d/;
+
+/** Cloudflare 隧道 530、连接中断等可重试失败。有数字 status 时只看是否 >= 500。 */
+export function isTransientGeminiError(error: unknown): boolean {
+  const status = (error as { status?: unknown } | null)?.status;
+  if (typeof status === 'number') {
+    return status >= 500;
+  }
+
+  const message = String((error as { message?: unknown } | null)?.message ?? '').toLowerCase();
+  return (
+    message.includes('fetch failed') ||
+    message.includes('terminated') ||
+    message.includes('socket') ||
+    message.includes('econnreset') ||
+    message.includes('und_err') ||
+    TRANSIENT_MESSAGE.test(message)
+  );
+}
+
+/**
+ * 调用 generateContent。瞬时错误等待 2 秒后再试一次（默认 retries = 1）。
+ */
+export async function generateContentWithRetry(
+  ai: GoogleGenAI,
+  params: GenerateContentParameters,
+  retries = 1,
+): Promise<GenerateContentResponse> {
+  let attempt = 0;
+  for (;;) {
+    attempt += 1;
+    try {
+      return await ai.models.generateContent(params);
+    } catch (error) {
+      const status = (error as { status?: unknown } | null)?.status;
+      const transient = isTransientGeminiError(error);
+      const message = String((error as { message?: unknown } | null)?.message ?? '').slice(0, 500);
+      console.error(
+        `[gemini] generateContent failed attempt=${attempt} model=${String(params.model)} status=${String(status)} transient=${transient} message=${message}`,
+      );
+      if (!transient || attempt > retries) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
 }

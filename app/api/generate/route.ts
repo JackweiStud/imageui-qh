@@ -16,6 +16,7 @@ import {
   createGeminiClient,
   extractFinalImageBase64,
   extractFinalText,
+  generateContentWithRetry,
   geminiImageModel,
   geminiImageProModel,
   geminiTextModel,
@@ -369,7 +370,7 @@ async function generateStyleTransform(sourceUrl: string, promptModifier: string,
   - If instruction implies artistic style transfer, adapt accordingly while keeping subject recognizable.
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await generateContentWithRetry(ai, {
     model: geminiImageModel(),
     contents: {
       parts: [
@@ -410,7 +411,7 @@ async function generateReferenceTransform(
     5. **Technical Specs:** Photorealistic, 8k UHD, sharp focus.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await generateContentWithRetry(ai, {
     model: geminiImageModel(),
     contents: {
       parts: [
@@ -509,7 +510,7 @@ async function generateFreeStyle(
     apiImageConfig.aspectRatio = aspectRatioValue;
   }
 
-  const response = await ai.models.generateContent({
+  const response = await generateContentWithRetry(ai, {
     model: geminiImageProModel(),
     contents: { parts },
     config: imageGenerationConfig({ imageConfig: apiImageConfig }),
@@ -568,7 +569,7 @@ async function generateCustomSwap(
     parts.push({ inlineData: { mimeType, data: targetBase64 } });
   }
 
-  const response = await ai.models.generateContent({
+  const response = await generateContentWithRetry(ai, {
     model: geminiImageModel(),
     contents: { parts },
     config: imageGenerationConfig(),
@@ -600,7 +601,7 @@ async function generateInpainting(
   3. **Contextual Continuity:** Fill with plausible content matching surroundings.
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await generateContentWithRetry(ai, {
     model: geminiImageModel(),
     contents: {
       parts: [
@@ -656,7 +657,7 @@ async function generateVirtualTryOn(
     `;
   }
 
-  const response = await ai.models.generateContent({
+  const response = await generateContentWithRetry(ai, {
     model: geminiImageModel(),
     contents: {
       parts: [
@@ -697,7 +698,7 @@ User's simple prompt: "${simplePrompt}"
 Please enhance this into a professional AI image generation prompt. Output in ${outputLanguage}.
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await generateContentWithRetry(ai, {
     model: geminiTextModel(),
     contents: {
       parts: [{ text: systemPrompt + userMessage }],
@@ -820,6 +821,15 @@ export async function POST(request: NextRequest) {
     if (error.code) {
       return NextResponse.json(createErrorResponse(error.code, error.message));
     }
+
+    console.error(
+      'Unhandled generate error:',
+      error?.message,
+      'status=',
+      error?.status,
+      'stack=',
+      error?.stack,
+    );
 
     const parsed = parseApiError(error);
     return NextResponse.json(createErrorResponse(parsed.code, parsed.message));
