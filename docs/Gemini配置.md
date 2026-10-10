@@ -62,7 +62,7 @@ GEMINI_TEXT_MODEL=gemini-3-flash
 
 ## 超时
 
-`app/api/generate` 的 `maxDuration` 是 300 秒（Vercel Hobby + Fluid Compute 的上限）。前端等待 310 秒。
+`app/api/generate/route.ts` 导出 `maxDuration = 300`（Vercel Hobby + Fluid Compute 的上限，也是项目默认值）。`vercel.json` 里不再写 functions 超时：原先的 `app/api/**/*: 60` 同样匹配生成路由，会把 300 秒盖掉。前端等待 310 秒。
 
 `huaizhoutechai.com` 若在 Cloudflare 上开了橙色云代理，源站超时大约仍是 100 秒，Vercel 放到 300 秒也用不上。要让长请求跑完，把该域名改成 DNS only（灰云）。保留橙色云时，生成需要在约 100 秒内结束；`MINIMAL` 就是为了把耗时压回这个范围。
 
