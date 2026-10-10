@@ -9,14 +9,14 @@ StyleMorph AI 是一个基于 React 18 和 Google Gemini AI 的高级图像处�
 - **场景**: 单图 + 提示词风格化
 - **功能**: 用户上传一张图片，选择预设风格（如“赛博朋克”、“商务装”）进行修改。
 - **实现**: 
-  - 模型: `gemini-2.5-flash-image`
+  - 模型: `GEMINI_IMAGE_MODEL`（默认 `gemini-3.1-flash-image`）
   - 逻辑: 强调保持原始构图、人物身份和身体比例，仅修改风格表现。
 
 ### 2.2 Reference Mode (参考模式)
 - **场景**: 换装/场景融合 (基于预设)
 - **功能**: 用户上传照片 + 选择底部预设的参考场景/服装。AI 将用户特征融入参考场景。
 - **实现**: 
-  - 模型: `gemini-2.5-flash-image`
+  - 模型: `GEMINI_IMAGE_MODEL`（默认 `gemini-3.1-flash-image`）
   - 逻辑: 双图输入（用户图 + 预设图）。Prompt 指示提取 Input 1 的面部/身份和 Input 2 的服装/背景进行合成，强调皮肤纹理真实感。
 
 ### 2.3 Free Mode (自由创作模式)
@@ -26,7 +26,7 @@ StyleMorph AI 是一个基于 React 18 和 Google Gemini AI 的高级图像处�
   - **图生图**: 上传图片 + 自定义修改指令。
   - **配置**: 支持 4K 分辨率输出，自定义长宽比 (Aspect Ratio) 和清晰度。
 - **实现**: 
-  - 模型: `gemini-3-pro-image-preview`
+  - 模型: `GEMINI_IMAGE_PRO_MODEL`（默认 `gemini-3-pro-image`）
   - 亮点: 使用更强的模型以支持高分辨率和精细指令遵循。
 
 ### 2.4 Custom Reference Mode (自定义参考模式)
@@ -36,7 +36,7 @@ StyleMorph AI 是一个基于 React 18 和 Google Gemini AI 的高级图像处�
   2. **Target**: 背景和服装源。
   3. **Pose (可选)**: 骨架/姿态参考（支持上传手绘草图）。
 - **实现**: 
-  - 模型: `gemini-2.5-flash-image`
+  - 模型: `GEMINI_IMAGE_MODEL`（默认 `gemini-3.1-flash-image`）
   - 逻辑: 复杂的执行顺序 Prompt（解析 Pose -> 应用 Target 服装 -> 移植 Source 面部）。
 
 ## 3. 关键技术亮点
