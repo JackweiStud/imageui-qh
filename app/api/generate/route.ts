@@ -3,19 +3,23 @@
  * 所有 AI 调用都通过此接口，API Key 仅在服务端使用，完全保护
  */
 
-// 设置全局代理（用于访问 Google API）
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
-const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-if (proxyUrl) {
-  setGlobalDispatcher(new ProxyAgent(proxyUrl));
-}
-
+// 设置全局代理（用于访问 Google API）。
+// GEMINI_BASE_URL 指向自建反代时，该主机直连，避免被 HTTP(S)_PROXY 转发。
+import { installFetchProxy } from '@/lib/configureGeminiProxy';
+installFetchProxy();
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenAI } from '@google/genai';
+import {
+  createGeminiClient,
+  extractFinalText,
+  geminiImageModel,
+  geminiImageProModel,
+  geminiTextModel,
+  imageGenerationConfig,
+} from '@/lib/gemini';
 import {
   GenerateRequest,
   GenerateResponse,
@@ -28,15 +32,7 @@ import {
 // ==================== 工具函数 ====================
 
 // 获取 AI 客户端 (服务端专用)
-const getAiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured');
-  }
-
-  return new GoogleGenAI({ apiKey });
-};
+const getAiClient = () => createGeminiClient();
 
 // 获取 Supabase Admin 客户端 (用于扣除积分 & 上传结果，绕过 RLS)
 const getSupabaseAdmin = () => {
@@ -376,13 +372,14 @@ async function generateStyleTransform(sourceUrl: string, promptModifier: string,
 `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: geminiImageModel(),
     contents: {
       parts: [
         { text: finalPrompt },
         { inlineData: { mimeType, data: imageBase64 } },
       ],
     },
+    config: imageGenerationConfig(),
   });
 
   return processAndUploadResult(response, userId);
@@ -416,7 +413,7 @@ async function generateReferenceTransform(
   `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: geminiImageModel(),
     contents: {
       parts: [
         { text: finalPrompt },
@@ -424,6 +421,7 @@ async function generateReferenceTransform(
         { inlineData: { mimeType, data: refBase64 } },
       ],
     },
+    config: imageGenerationConfig(),
   });
 
   return processAndUploadResult(response, userId);
@@ -507,16 +505,16 @@ async function generateFreeStyle(
     parts.push({ text: finalPrompt });
   }
 
-  const apiImageConfig: Record<string, string> = { imageSize: config.imageSize };
+  const apiImageConfig: { imageSize: string; aspectRatio?: string } = { imageSize: config.imageSize };
   const aspectRatioValue = mapAspectRatio(config.aspectRatio);
   if (aspectRatioValue) {
     apiImageConfig.aspectRatio = aspectRatioValue;
   }
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-image-preview', // 使用新模型
+    model: geminiImageProModel(),
     contents: { parts },
-    config: { imageConfig: apiImageConfig },
+    config: imageGenerationConfig({ imageConfig: apiImageConfig }),
   });
 
   return processAndUploadResult(response, userId);
@@ -573,8 +571,9 @@ async function generateCustomSwap(
   }
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: geminiImageModel(),
     contents: { parts },
+    config: imageGenerationConfig(),
   });
 
   return processAndUploadResult(response, userId);
@@ -604,7 +603,7 @@ async function generateInpainting(
 `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: geminiImageModel(),
     contents: {
       parts: [
         { text: finalPrompt },
@@ -612,6 +611,7 @@ async function generateInpainting(
         { inlineData: { mimeType, data: maskBase64 } },
       ],
     },
+    config: imageGenerationConfig(),
   });
 
   return processAndUploadResult(response, userId);
@@ -659,7 +659,7 @@ async function generateVirtualTryOn(
   }
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: geminiImageModel(),
     contents: {
       parts: [
         { text: instructions },
@@ -667,6 +667,7 @@ async function generateVirtualTryOn(
         { inlineData: { mimeType, data: garmentBase64 } },
       ],
     },
+    config: imageGenerationConfig(),
   });
 
   return processAndUploadResult(response, userId);
@@ -699,19 +700,14 @@ Please enhance this into a professional AI image generation prompt. Output in ${
 `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: geminiTextModel(),
     contents: {
       parts: [{ text: systemPrompt + userMessage }],
     },
     config: { temperature: 1 },
   });
 
-  const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('No text generated');
-  }
-
-  return text.trim().replace(/^["']|["']$/g, '');
+  return extractFinalText(response).replace(/^["']|["']$/g, '');
 }
 
 // ==================== 主路由处理 ====================

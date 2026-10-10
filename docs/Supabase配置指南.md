@@ -17,6 +17,11 @@
 ```env
 # Google Gemini API
 GEMINI_API_KEY=YOUR_GEMINI_KEY
+# 可选：反代与模型覆盖，见 docs/Gemini配置.md
+# GEMINI_BASE_URL=https://your-tunnel.trycloudflare.com
+# GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
+# GEMINI_IMAGE_PRO_MODEL=gemini-3-pro-image
+# GEMINI_TEXT_MODEL=gemini-3-flash-preview
 
 # Supabase Auth
 NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL

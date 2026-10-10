@@ -1,5 +1,7 @@
-// 启用代理支持（用于访问 Google API）
+// 启用代理支持（用于访问 Google API）。
+// 若配置了 GEMINI_BASE_URL，先把反代主机写入 NO_PROXY，避免 global-agent 转发隧道请求。
 if (process.env.HTTP_PROXY || process.env.HTTPS_PROXY) {
+  require('./lib/configureGeminiProxy').applyGeminiNoProxy();
   require('global-agent').bootstrap();
 }
 

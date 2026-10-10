@@ -26,7 +26,7 @@ StyleMorph AI 是一个功能强大的 AI 图像生成与编辑平台，基于 *
 - **前端**: Next.js 14 (App Router), React, Tailwind CSS, Lucide React
 - **后端**: Next.js API Routes, Supabase Auth & Database
 - **存储**: Supabase Storage (解决 Vercel Payload 限制)
-- **AI 模型**: Google Gemini (gemini-2.5-flash-image, gemini-3-pro-image-preview)
+- **AI 模型**: Google Gemini（默认 `gemini-3.1-flash-image`、`gemini-3-pro-image`、`gemini-3-flash-preview`，可通过环境变量更换；也可指向 Gemini 兼容反代）
 
 ## 🚀 本地运行
 
@@ -47,18 +47,32 @@ StyleMorph AI 是一个功能强大的 AI 图像生成与编辑平台，基于 *
    在项目根目录创建一个 `.env.local` 文件，并添加以下配置：
 
    ```env
-   # Google Gemini AI
+   # Google Gemini AI（官方 API 与反代共用这一把 key）
    GEMINI_API_KEY=你的_GEMINI_API_KEY
+
+   # 可选：Gemini 兼容反代（如 Antigravity Tools + Cloudflare Tunnel）
+   # 只填源站根地址，SDK 会请求 <BASE>/v1beta/models/<model>:generateContent
+   # GEMINI_BASE_URL=https://your-tunnel.trycloudflare.com
+   # 反代上的自由创作模型没有可用账号，文本模型 ID 也与官方不同，需要覆盖：
+   # GEMINI_IMAGE_PRO_MODEL=gemini-3.1-flash-image
+   # GEMINI_TEXT_MODEL=gemini-3-flash
+
+   # 可选：模型 ID。不设置时使用下列默认值（官方 API 可直接用）
+   # GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
+   # GEMINI_IMAGE_PRO_MODEL=gemini-3-pro-image
+   # GEMINI_TEXT_MODEL=gemini-3-flash-preview
 
    # Supabase Configuration
    NEXT_PUBLIC_SUPABASE_URL=你的_SUPABASE_PROJECT_URL
    NEXT_PUBLIC_SUPABASE_ANON_KEY=你的_SUPABASE_ANON_KEY
    SUPABASE_SERVICE_ROLE_KEY=你的_SUPABASE_SERVICE_ROLE_KEY
 
-   # (可选) 代理设置
+   # (可选) 访问官方 Google API 的代理。设置了 GEMINI_BASE_URL 后，该主机直连，其它请求仍走代理。
    # HTTP_PROXY=http://127.0.0.1:7890
    # HTTPS_PROXY=http://127.0.0.1:7890
    ```
+
+   变量说明见 [docs/Gemini配置.md](docs/Gemini配置.md)。完整模板见 [`.env.example`](.env.example)。
 
 3. **启动开发服务器**
    ```bash
@@ -81,7 +95,19 @@ StyleMorph AI 是一个功能强大的 AI 图像生成与编辑平台，基于 *
     - `SUPABASE_SERVICE_ROLE_KEY`
 4. 点击 **Deploy**。
 
-> **注意**: Vercel 服务器位于海外，通常可以直接访问 Google API，无需配置代理。
+直连官方 Gemini 时不要设置 `GEMINI_BASE_URL`，模型变量也可以留空（默认 `gemini-3.1-flash-image`、`gemini-3-pro-image`、`gemini-3-flash-preview`）。
+
+要把生成请求指到自建反代（Antigravity Tools，经 Cloudflare Tunnel 暴露），额外设置：
+
+```env
+GEMINI_BASE_URL=https://<tunnel-host>
+GEMINI_IMAGE_PRO_MODEL=gemini-3.1-flash-image
+GEMINI_TEXT_MODEL=gemini-3-flash
+```
+
+`GEMINI_API_KEY` 填反代接受的 key。`GEMINI_IMAGE_MODEL` 保持默认 `gemini-3.1-flash-image` 即可。不要在 Vercel 上设置 `HTTP_PROXY` / `HTTPS_PROXY`。
+
+> **注意**: Vercel 服务器位于海外，通常可以直接访问 Google API，无需配置代理。本地若必须通过 `HTTP_PROXY` 访问 Google，设置 `GEMINI_BASE_URL` 后反代主机会直连，不会被该代理转发。
 
 ## 📁 项目结构
 
