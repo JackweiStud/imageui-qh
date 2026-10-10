@@ -61,6 +61,9 @@ StyleMorph AI 是一个功能强大的 AI 图像生成与编辑平台，基于 *
    # GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
    # GEMINI_IMAGE_PRO_MODEL=gemini-3-pro-image
    # GEMINI_TEXT_MODEL=gemini-3-flash-preview
+   # 图像思考档。默认 MINIMAL，且不返回思考草稿。设为 off 则不传。
+   # GEMINI_IMAGE_THINKING_LEVEL=MINIMAL
+   # GEMINI_IMAGE_INCLUDE_THOUGHTS=false
 
    # Supabase Configuration
    NEXT_PUBLIC_SUPABASE_URL=你的_SUPABASE_PROJECT_URL
@@ -105,7 +108,9 @@ GEMINI_IMAGE_PRO_MODEL=gemini-3.1-flash-image
 GEMINI_TEXT_MODEL=gemini-3-flash
 ```
 
-`GEMINI_API_KEY` 填反代接受的 key。`GEMINI_IMAGE_MODEL` 保持默认 `gemini-3.1-flash-image` 即可。不要在 Vercel 上设置 `HTTP_PROXY` / `HTTPS_PROXY`。
+`GEMINI_API_KEY` 填反代接受的 key。`GEMINI_IMAGE_MODEL` 保持默认 `gemini-3.1-flash-image` 即可。图像请求默认 `thinkingLevel=MINIMAL` 且 `includeThoughts=false`。不要在 Vercel 上设置 `HTTP_PROXY` / `HTTPS_PROXY`。
+
+`/api/generate` 最长 300 秒。若 `huaizhoutechai.com` 开着 Cloudflare 橙色云，源站大约 100 秒就会被切断，需要改成 DNS only（灰云）才能用满这段时间。
 
 > **注意**: Vercel 服务器位于海外，通常可以直接访问 Google API，无需配置代理。本地若必须通过 `HTTP_PROXY` 访问 Google，设置 `GEMINI_BASE_URL` 后反代主机会直连，不会被该代理转发。
 

@@ -124,9 +124,10 @@ async function callApi(request: GenerateRequest): Promise<string> {
   // 记录请求开始时间 (用于恢复查询)
   const requestStartTime = Date.now();
 
-  // 设置 90 秒前端超时（比后端 60 秒略长，以便接收后端可能的超时响应）
+  // 略长于服务端 maxDuration（300s），以便收到函数自己的超时响应。
+  // huaizhoutechai.com 若走 Cloudflare 橙色云，源站连接仍会在约 100s 被切断。
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90000);
+  const timeoutId = setTimeout(() => controller.abort(), 310000);
 
   try {
     const response = await fetch(API_ENDPOINT, {

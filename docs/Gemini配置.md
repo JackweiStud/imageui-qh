@@ -11,6 +11,8 @@
 | `GEMINI_IMAGE_MODEL` | `gemini-3.1-flash-image` | 风格转换、参考图、换身、局部重绘、虚拟试衣。 |
 | `GEMINI_IMAGE_PRO_MODEL` | `gemini-3-pro-image` | 自由创作（可带比例和分辨率）。 |
 | `GEMINI_TEXT_MODEL` | `gemini-3-flash-preview` | 提示词增强。 |
+| `GEMINI_IMAGE_THINKING_LEVEL` | `MINIMAL` | 图像请求的思考档。`gemini-3.1-flash-image` 只接受 `MINIMAL` 或 `HIGH`。`off` / `omit` / `none` 表示不传。 |
+| `GEMINI_IMAGE_INCLUDE_THOUGHTS` | `false` | 为 `true` 时才把思考摘要和草稿图放进响应。 |
 
 `GEMINI_BASE_URL` 填源站根地址，例如 `https://your-tunnel.trycloudflare.com`。不要带 `/v1beta`；如果带了，程序会去掉，避免路径变成 `/v1beta/v1beta/...`。
 
@@ -47,6 +49,22 @@ GEMINI_TEXT_MODEL=gemini-3-flash
 - `installFetchProxy()` 用 undici 的 `ProxyAgent` 接管全局 `fetch`（`@google/genai` 走 `fetch`）。
 
 设置了 `GEMINI_BASE_URL` 之后，反代主机名会写入 `NO_PROXY` 和 `GLOBAL_AGENT_NO_PROXY`。`fetch` 改用 `EnvHttpProxyAgent`：隧道上的 Gemini 请求直连，Supabase 等其它请求继续走原来的代理。未设置 `GEMINI_BASE_URL` 时，dispatcher 仍是 `new ProxyAgent(proxyUrl)`，与之前相同。
+
+## 图像思考与成图
+
+`gemini-3.1-flash-image` 的官方思考档只有 `MINIMAL`（默认）和 `HIGH`。`thinkingBudget: 0` 是 Gemini 2.5 的写法，和 `thinkingLevel` 一起送会报错，所以图像请求只传：
+
+```json
+{ "thinkingLevel": "MINIMAL", "includeThoughts": false }
+```
+
+反代在未传该配置时会返回多段 `thought: true` 文本、一张标记为思考的草稿图，再返回最终图，整次大约要 77 秒。成图解析只取最后一张 `thought` 不是 `true` 的 `inlineData`；如果只有草稿图，接口返回 `NO_IMAGE_DATA`。
+
+## 超时
+
+`app/api/generate` 的 `maxDuration` 是 300 秒（Vercel Hobby + Fluid Compute 的上限）。前端等待 310 秒。
+
+`huaizhoutechai.com` 若在 Cloudflare 上开了橙色云代理，源站超时大约仍是 100 秒，Vercel 放到 300 秒也用不上。要让长请求跑完，把该域名改成 DNS only（灰云）。保留橙色云时，生成需要在约 100 秒内结束；`MINIMAL` 就是为了把耗时压回这个范围。
 
 ## 文本回答
 

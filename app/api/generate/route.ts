@@ -14,6 +14,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import {
   createGeminiClient,
+  extractFinalImageBase64,
   extractFinalText,
   geminiImageModel,
   geminiImageProModel,
@@ -28,6 +29,9 @@ import {
   AspectRatio,
   TryOnMode
 } from '@/lib/types';
+
+// Hobby + Fluid Compute 上限 300s。Cloudflare 橙色云对源站大约 100s 就会切断。
+export const maxDuration = 300;
 
 // ==================== 工具函数 ====================
 
@@ -206,17 +210,11 @@ const extractBase64FromResponse = (response: any): string => {
   }
 
   const parts = candidate?.content?.parts;
-  if (!parts) {
-    throw { code: ERROR_CODES.NO_IMAGE_DATA, message: 'No content generated' };
+  try {
+    return extractFinalImageBase64(parts);
+  } catch (error: any) {
+    throw { code: ERROR_CODES.NO_IMAGE_DATA, message: error?.message || 'No image data found in response' };
   }
-
-  for (const part of parts) {
-    if (part.inlineData && part.inlineData.data) {
-      return part.inlineData.data;
-    }
-  }
-
-  throw { code: ERROR_CODES.NO_IMAGE_DATA, message: 'No image data found in response' };
 };
 
 // 辅助：下载 URL 并转为 Base64 (供 Gemini 输入) - 增加 SSRF 防护
