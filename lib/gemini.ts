@@ -1,4 +1,8 @@
-import { GoogleGenAI, type GenerateContentResponse } from '@google/genai';
+import {
+  GoogleGenAI,
+  type GenerateContentResponse,
+  type ThinkingLevel,
+} from '@google/genai';
 
 /**
  * 图像模型默认值。
@@ -22,6 +26,13 @@ export const DEFAULT_GEMINI_IMAGE_PRO_MODEL = 'gemini-3-pro-image';
  */
 export const DEFAULT_GEMINI_TEXT_MODEL = 'gemini-3-flash-preview';
 
+/**
+ * gemini-3.1-flash-image 只接受 thinkingLevel `MINIMAL` 或 `HIGH`（官方默认 MINIMAL）。
+ * 不能再用 thinkingBudget：和 thinkingLevel 一起送会 400，单独设 0 也不是这个模型的关闭方式。
+ * MINIMAL 是两边都能接受的最低档。设成 off / omit / none 则不传 thinkingConfig。
+ */
+export const DEFAULT_GEMINI_IMAGE_THINKING_LEVEL = 'MINIMAL';
+
 function envOrDefault(name: string, fallback: string): string {
   const value = process.env[name]?.trim();
   return value || fallback;
@@ -37,6 +48,27 @@ export function geminiImageProModel(): string {
 
 export function geminiTextModel(): string {
   return envOrDefault('GEMINI_TEXT_MODEL', DEFAULT_GEMINI_TEXT_MODEL);
+}
+
+export function imageThinkingConfig():
+  | { includeThoughts: boolean; thinkingLevel: ThinkingLevel }
+  | undefined {
+  const level = envOrDefault(
+    'GEMINI_IMAGE_THINKING_LEVEL',
+    DEFAULT_GEMINI_IMAGE_THINKING_LEVEL,
+  );
+  if (level.toLowerCase() === 'off' || level.toLowerCase() === 'omit' || level.toLowerCase() === 'none') {
+    return undefined;
+  }
+
+  const includeRaw = process.env.GEMINI_IMAGE_INCLUDE_THOUGHTS?.trim().toLowerCase();
+  const includeThoughts = includeRaw === '1' || includeRaw === 'true' || includeRaw === 'yes';
+
+  return {
+    includeThoughts,
+    // SDK 1.30 的枚举还没有 MINIMAL，但 REST 会原样转发该字符串。
+    thinkingLevel: level.toUpperCase() as ThinkingLevel,
+  };
 }
 
 /**
@@ -89,14 +121,46 @@ export function createGeminiClient(): GoogleGenAI {
   });
 }
 
-/** 图像请求需要同时要文本和图片，与官方图像模型和反代的已验证调用一致。 */
+/** 图像请求需要同时要文本和图片，并压到最低思考档，避免草稿图把响应拖到几十秒。 */
 export function imageGenerationConfig(extra?: {
   imageConfig?: { aspectRatio?: string; imageSize?: string };
 }) {
+  const thinkingConfig = imageThinkingConfig();
   return {
     responseModalities: ['TEXT', 'IMAGE'],
+    ...(thinkingConfig ? { thinkingConfig } : {}),
     ...extra,
   };
+}
+
+type ResponsePart = {
+  thought?: boolean;
+  text?: string;
+  inlineData?: { data?: string };
+};
+
+/**
+ * 取最终成图。反代会先返回 thought:true 的草稿图，再返回未标记的成图。
+ * 只用最后一张非思考图；全是草稿图或没有图时抛错。
+ */
+export function extractFinalImageBase64(parts: ResponsePart[] | undefined): string {
+  if (!parts || parts.length === 0) {
+    throw new Error('No content generated');
+  }
+
+  const imageParts = parts.filter(
+    (part) => typeof part.inlineData?.data === 'string' && part.inlineData.data.length > 0,
+  );
+  const finals = imageParts.filter((part) => part.thought !== true);
+  const finalImage = finals[finals.length - 1];
+  if (finalImage?.inlineData?.data) {
+    return finalImage.inlineData.data;
+  }
+
+  if (imageParts.length > 0) {
+    throw new Error('Response contained only draft thought images');
+  }
+  throw new Error('No image data found in response');
 }
 
 /**
